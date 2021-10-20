@@ -23,6 +23,9 @@ type Cluster struct {
 	network *labrpc.Network
 	// the Name of the cluster, also used as a network address of the cluster coordinator in the network above
 	Name string
+
+	// Segmentation rules
+	Rules []Rule
 }
 
 // NewCluster creates a Cluster with the given number of nodes and register the nodes to the given network.
@@ -116,15 +119,14 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 
 	// Since there are multiple rules, Slice would be a more intuitive structure for it
 	// Convert map_rules from Map to Slice
-	rules := make([]Rule, 0, len(map_rules))
 	for  _, value := range map_rules {
-	   rules = append(rules, value)
+	   c.Rules = append(c.Rules, value)
 	}
 
 	// Example usage of rules
-	// fmt.Println(rules[0].Predicate["BUDGET"][0].Op)
-	// fmt.Println(rules[0].Predicate["BUDGET"][0].Val)
-	// fmt.Println(rules[0].Column)
+	// fmt.Println(c.Rules[0].Predicate["BUDGET"][0].Op)
+	// fmt.Println(c.Rules[0].Predicate["BUDGET"][0].Val)
+	// fmt.Println(c.Rules[0].Column)
 
 }
 
