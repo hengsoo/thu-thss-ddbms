@@ -24,8 +24,8 @@ type Cluster struct {
 	// the Name of the cluster, also used as a network address of the cluster coordinator in the network above
 	Name string
 
-	// Segmentation rules
-	Rules []Rule
+	// Segmentation rules for tables
+	TableRulesMap map[string][]Rule
 }
 
 // NewCluster creates a Cluster with the given number of nodes and register the nodes to the given network.
@@ -42,6 +42,8 @@ type Cluster struct {
 func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Cluster {
 	labgob.Register(TableSchema{})
 	labgob.Register(Row{})
+
+	tableRulesMap := make(map[string][]Rule)
 
 	nodeIds := make([]string, nodeNum)
 	nodeNamePrefix := "Node"
@@ -64,7 +66,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 	}
 
 	// create a cluster with the nodes and the network
-	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName}
+	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName, TableRulesMap: tableRulesMap}
 	// create a coordinator for the cluster to receive external requests, the steps are similar to those above.
 	// notice that we use the reference of the cluster as the name of the coordinator server,
 	// and the names can be more than strings.
@@ -114,22 +116,31 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 	//rules := params[1]
 
 	schema := params[0].(TableSchema)
-	_ = schema // Placeholder
 
-	// Parse rules from unstructured json to map
-	var map_rules map[int]Rule
-	json.Unmarshal(params[1].([]byte), &map_rules)
+	// Check if the table already exists
+	if _, ok := c.TableRulesMap[schema.TableName]; ok {
+		reply = nil
+		fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
+	} else {
+		// Parse rules from unstructured json to map
+		var map_rules map[int]Rule
+		json.Unmarshal(params[1].([]byte), &map_rules)
 
-	// Since there are multiple rules, Slice would be a more intuitive structure for it
-	// Convert map_rules from Map to Slice
-	for  _, value := range map_rules {
-	   c.Rules = append(c.Rules, value)
+		// Since there are multiple rules, Slice would be a more intuitive structure for it
+		// Convert map_rules from Map to Slice
+		for  _, value := range map_rules {
+		   c.TableRulesMap[schema.TableName] = append(c.TableRulesMap[schema.TableName], value)
+		}
+
+		// Example usage of rules
+		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Op)
+		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Val)
+		// fmt.Println(c.TableRulesMap[schema.TableName][0].Column)
+
+		// TODO
+		// for i, rule in c.TableRulesMap[schema.TableName]
+		// 		create table @node[i]
 	}
-
-	// Example usage of rules
-	// fmt.Println(c.Rules[0].Predicate["BUDGET"][0].Op)
-	// fmt.Println(c.Rules[0].Predicate["BUDGET"][0].Val)
-	// fmt.Println(c.Rules[0].Column)
 
 }
 
