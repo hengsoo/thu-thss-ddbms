@@ -113,6 +113,9 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 	//schema := params[0]
 	//rules := params[1]
 
+	schema := params[0].(TableSchema)
+	_ = schema // Placeholder
+
 	// Parse rules from unstructured json to map
 	var map_rules map[int]Rule
 	json.Unmarshal(params[1].([]byte), &map_rules)
