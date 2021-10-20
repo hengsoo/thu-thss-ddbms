@@ -5,6 +5,7 @@ import (
 	"../labrpc"
 	"fmt"
 	"strconv"
+	"encoding/json"
 )
 
 // Cluster consists of a group of nodes to manage distributed tables defined in models/table.go.
@@ -108,6 +109,22 @@ func (c* Cluster) Join(tableNames []string, reply *Dataset) {
 func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 	//schema := params[0]
 	//rules := params[1]
+
+	// Parse rules from unstructured json to map
+	var map_rules map[int]Rule
+	json.Unmarshal(params[1].([]byte), &map_rules)
+
+	// Since there are multiple rules, Slice would be a more intuitive structure for it
+	// Convert map_rules from Map to Slice
+	rules := make([]Rule, 0, len(map_rules))
+	for  _, value := range map_rules {
+	   rules = append(rules, value)
+	}
+
+	// Example usage of rules
+	// fmt.Println(rules[0].Predicate["BUDGET"][0].Op)
+	// fmt.Println(rules[0].Predicate["BUDGET"][0].Val)
+	// fmt.Println(rules[0].Column)
 
 }
 
