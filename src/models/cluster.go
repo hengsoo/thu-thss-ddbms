@@ -123,12 +123,12 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 		fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
 	} else {
 		// Parse rules from unstructured json to map
-		var map_rules map[int]Rule
-		json.Unmarshal(params[1].([]byte), &map_rules)
+		var rulesMap map[int]Rule
+		json.Unmarshal(params[1].([]byte), &rulesMap)
 
 		// Since there are multiple rules, Slice would be a more intuitive structure for it
 		// Convert map_rules from Map to Slice
-		for  _, value := range map_rules {
+		for  _, value := range rulesMap {
 		   c.TableRulesMap[schema.TableName] = append(c.TableRulesMap[schema.TableName], value)
 		}
 
@@ -139,7 +139,7 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 
 		// TODO
 		// for i, rule in c.TableRulesMap[schema.TableName]
-		// 		create table @node[i]
+		// 		create table @node[i] using rule
 	}
 
 }
@@ -148,4 +148,8 @@ func (c* Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//tableName := params[0]
 	//row := params[1]
 
+	// TODO
+	// for i, rule in c.TableRulesMap[tableName]
+	//		if rule satisfied:
+	//			write into node[i]
 }
