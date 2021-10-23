@@ -29,33 +29,33 @@ func (n *Node) SayHello(args interface{}, reply *string) {
 
 // helper function to print table column name and datatype
 /*
-    0 - TypeInt32 = iota
-    1 - TypeInt64
-    2 - TypeFloat
-    3 - TypeDouble
-    4 - TypeBoolean
-    5 - TypeString
+   0 - TypeInt32 = iota
+   1 - TypeInt64
+   2 - TypeFloat
+   3 - TypeDouble
+   4 - TypeBoolean
+   5 - TypeString
 */
-func (n* Node) PrintTableColumnSchemas() {
-    for _,v := range n.TableMap {
-        fmt.Print("\n")
-        fmt.Printf("------------ Table %s Columns -------------- \n", v.schema.TableName)
-        var columnCount = v.GetColumnCount()
-        for i := 0; i < columnCount; i++ {
-            fmt.Print(">> ")
-            fmt.Println(v.GetColumnName(i) + " " + strconv.Itoa(v.GetColumnType(i)))
-        }
-        fmt.Print("\n")
-    }
+func (n *Node) PrintTableColumnSchemas() {
+	for _, v := range n.TableMap {
+		fmt.Print("\n")
+		fmt.Printf("------------ Table %s Columns -------------- \n", v.schema.TableName)
+		var columnCount = v.GetColumnCount()
+		for i := 0; i < columnCount; i++ {
+			fmt.Print(">> ")
+			fmt.Println(v.GetColumnName(i) + " " + strconv.Itoa(v.GetColumnType(i)))
+		}
+		fmt.Print("\n")
+	}
 }
 
 func (n *Node) BuildTable(args interface{}, reply *string) {
-    n.CreateTable(args.(*TableSchema))
+	n.CreateTable(args.(*TableSchema))
 
-    // uncomment to debug
-    // n.PrintTableColumnSchemas()
+	// uncomment to debug
+	// n.PrintTableColumnSchemas()
 
-    *reply = fmt.Sprintf("Successfully built table %s for Node %s", args.(*TableSchema).TableName, n.Identifier)
+	*reply = fmt.Sprintf("Successfully built table %s for Node %s", args.(*TableSchema).TableName, n.Identifier)
 }
 
 // CreateTable creates a Table on this node with the provided schema. It returns nil if the table is created

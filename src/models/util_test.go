@@ -6,7 +6,7 @@ func TestCompareDataset(t *testing.T) {
 	a := Dataset{
 		Schema: TableSchema{
 			"a",
-			[]ColumnSchema {
+			[]ColumnSchema{
 				{"c1", TypeInt32},
 				{"c2", TypeFloat},
 				{"c3", TypeString},
@@ -23,7 +23,7 @@ func TestCompareDataset(t *testing.T) {
 	b := Dataset{
 		Schema: TableSchema{
 			"b",
-			[]ColumnSchema {
+			[]ColumnSchema{
 				{"c3", TypeString},
 				{"c2", TypeFloat},
 				{"c1", TypeInt32},
@@ -43,14 +43,14 @@ func TestCompareDataset(t *testing.T) {
 	}
 
 	// change a column
-	caseNum ++
+	caseNum++
 	b.Schema.ColumnSchemas[1].Name = "c4"
 	if compareDataset(a, b) {
 		t.Errorf("Two datasets should not be equal, caseNum: %d", caseNum)
 	}
 
 	// change a row
-	caseNum ++
+	caseNum++
 	b.Schema.ColumnSchemas[1].Name = "c2"
 	b.Rows[0][0] = "4.0"
 	if compareDataset(a, b) {
@@ -58,9 +58,9 @@ func TestCompareDataset(t *testing.T) {
 	}
 
 	// add a column
-	caseNum ++
+	caseNum++
 	b.Rows[0][0] = "3.0"
-	b.Schema.ColumnSchemas = []ColumnSchema {
+	b.Schema.ColumnSchemas = []ColumnSchema{
 		{"c3", TypeString},
 		{"c2", TypeFloat},
 		{"c1", TypeInt32},
@@ -71,8 +71,8 @@ func TestCompareDataset(t *testing.T) {
 	}
 
 	// add a row
-	caseNum ++
-	b.Schema.ColumnSchemas = []ColumnSchema {
+	caseNum++
+	b.Schema.ColumnSchemas = []ColumnSchema{
 		{"c3", TypeString},
 		{"c2", TypeFloat},
 		{"c1", TypeInt32},

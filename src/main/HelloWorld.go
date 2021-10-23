@@ -37,4 +37,3 @@ func main() {
 	fmt.Println("The coordinator returns a reply:")
 	fmt.Println(reply)
 }
-

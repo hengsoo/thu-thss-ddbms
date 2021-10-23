@@ -21,27 +21,27 @@ func ignoredTestLab2Basic(t *testing.T) {
 	// use the client to create table and insert
 	studentTableName := "student"
 	m := map[string]interface{}{
-		"0":map[string]interface{}{
-			"predicate":map[string]interface{}{
-				"grade":[...]map[string]interface{}{{
-					"op": "<=",
+		"0": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  "<=",
 					"val": 3.6,
 				},
 				},
 			},
-			"column":[...]string{
+			"column": [...]string{
 				"sid", "name", "age", "grade",
 			},
 		},
-		"1":map[string]interface{}{
-			"predicate":map[string]interface{}{
-				"grade":[...]map[string]interface{}{{
-					"op": ">",
+		"1": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  ">",
 					"val": 3.6,
 				},
 				},
 			},
-			"column":[...]string{
+			"column": [...]string{
 				"sid", "name", "age", "grade",
 			},
 		},
@@ -68,15 +68,15 @@ func ignoredTestLab2Basic(t *testing.T) {
 
 	courseRegistrationTableName := "courseRegistration"
 	m = map[string]interface{}{
-		"2":map[string]interface{}{
-			"predicate":map[string]interface{}{
-				"courseId":[...]map[string]interface{}{{
-					"op": ">=",
+		"2": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"courseId": [...]map[string]interface{}{{
+					"op":  ">=",
 					"val": 0,
 				},
 				},
 			},
-			"column":[...]string{
+			"column": [...]string{
 				"sid", "courseId",
 			},
 		},
@@ -114,7 +114,7 @@ func ignoredTestLab2Basic(t *testing.T) {
 				{"courseId", TypeInt32},
 			},
 		},
-		Rows:   []Row{
+		Rows: []Row{
 			{0, "John", 22, 4.0, 0},
 			{0, "John", 22, 4.0, 1},
 			{1, "Smith", 23, 3.6, 0},

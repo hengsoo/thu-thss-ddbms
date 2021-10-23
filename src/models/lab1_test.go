@@ -22,9 +22,11 @@ func TestLab1Basic(t *testing.T) {
 	// create fragment rules
 	var i interface{}
 	err := json.Unmarshal([]byte(`{"0": {"predicate": {"BUDGET":[{"op": "<=", "val": 250000}]}, "column": ["PNO", "BUDGET"]},"1": {"predicate": {"BUDGET":[{"op": "<=", "val": 250000}]}, "column": ["PNO", "PNAME", "LOC"]},"2": {"predicate": {"BUDGET":[{"op": ">", "val": 250000}]}, "column": ["PNO", "PNAME", "BUDGET", "LOC"]}}`), &i)
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 	m := i.(map[string]interface{})
-	rules,_ := json.Marshal(m)
+	rules, _ := json.Marshal(m)
 	fmt.Printf("map_json=%v\n", string(rules))
 
 	// use the client to create table and insert
@@ -78,7 +80,7 @@ func TestLab1Basic(t *testing.T) {
 				{Name: "BUDGET", DataType: TypeDouble},
 			},
 		},
-		Rows:   []Row{
+		Rows: []Row{
 			{"P1", 150000},
 			{"P2", 135000},
 			{"P3", 250000},
@@ -94,7 +96,7 @@ func TestLab1Basic(t *testing.T) {
 				{Name: "LOC", DataType: TypeString},
 			},
 		},
-		Rows:   []Row{
+		Rows: []Row{
 			{"P1", "Instrumentation", "Montreal"},
 			{"P2", "Database Develop.", "New York"},
 			{"P3", "CAD/CAM", "New York"},
@@ -111,7 +113,7 @@ func TestLab1Basic(t *testing.T) {
 				{Name: "LOC", DataType: TypeString},
 			},
 		},
-		Rows:   []Row{
+		Rows: []Row{
 			{"P4", "Maintenance", 310000, "Paris"},
 		},
 	}

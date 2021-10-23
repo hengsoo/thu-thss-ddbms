@@ -75,7 +75,7 @@ func (s *MemoryListRowStore) remove(row *Row) {
 	curr := s.rows.Front()
 	for curr != nil {
 		// find the first row that equals the argument
-		r,_ := curr.Value.(Row)
+		r, _ := curr.Value.(Row)
 		if r.Equals(row) {
 			s.rows.Remove(curr)
 			return
@@ -89,7 +89,7 @@ type MemoryListRowIterator struct {
 	rows *list.List
 }
 
-func NewMemoryListRowIterator(rows *list.List) RowIterator{
+func NewMemoryListRowIterator(rows *list.List) RowIterator {
 	iter := &MemoryListRowIterator{rows.Front(), rows}
 	return iter
 }
@@ -102,13 +102,8 @@ func (iter *MemoryListRowIterator) Next() *Row {
 	if iter.next == nil {
 		return nil
 	} else {
-		t,_ := iter.next.Value.(Row)
+		t, _ := iter.next.Value.(Row)
 		iter.next = iter.next.Next()
 		return &t
 	}
 }
-
-
-
-
-
