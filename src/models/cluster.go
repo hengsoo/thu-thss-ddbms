@@ -111,6 +111,18 @@ func (c* Cluster) Join(tableNames []string, reply *Dataset) {
 	//TODO lab2
 }
 
+// return datatype of a column in a schema given column name
+func getColTypeByName(schema TableSchema, colName string) int {
+    var colSchemas = schema.ColumnSchemas
+    for _, col := range colSchemas {
+        if col.Name == colName {
+            return col.DataType
+        }
+    }
+    // default to TypeInt32
+    return int(0)
+}
+
 func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 	//schema := params[0]
 	//rules := params[1]
@@ -133,13 +145,37 @@ func (c* Cluster) BuildTable(params []interface{}, reply *string) {
 		}
 
 		// Example usage of rules
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Op)
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Val)
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Column)
+        // fmt.Println("Rules")
+        // fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Op)
+        // fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Val)
+        // fmt.Println(c.TableRulesMap[schema.TableName][0].Column)
 
-		// TODO
-		// for i, rule in c.TableRulesMap[schema.TableName]
-		// 		create table @node[i] using rule
+		endNamePrefix := "InternalClient"
+		for i, _ := range c.TableRulesMap[schema.TableName] {
+		    nodeId := c.nodeIds[i]
+            endName := endNamePrefix + nodeId
+            end := c.network.MakeEnd(endName)
+            // connect the client to the node
+            c.network.Connect(endName, nodeId)
+            // a client should be enabled before being used
+            c.network.Enable(endName, true)
+
+            var colSchemas = make([]ColumnSchema,len(c.TableRulesMap[schema.TableName][i].Column))
+            var colRules = c.TableRulesMap[schema.TableName][i].Column
+
+            // create column schemas from rules
+            for j, colName := range colRules {
+                colSchemas[j] = ColumnSchema {Name:colName, DataType:getColTypeByName(schema, colName)}
+            }
+
+            // create table schema with name specific to node they live on
+            argument := TableSchema{TableName:"PROJ"+ strconv.Itoa(i), ColumnSchemas:colSchemas}
+            reply := ""
+
+            // ampersand (&) to pass as reference. Needed by Node.CreateTable
+            end.Call("Node.BuildTable", &argument, &reply)
+            fmt.Println(reply)
+        }
 	}
 
 }
