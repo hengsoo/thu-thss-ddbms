@@ -25,8 +25,8 @@ type Cluster struct {
 	Name string
 
 	// Segmentation rules for tables
-	TableRulesMap map[string][]Rule
-	schema        TableSchema
+	TableRulesMap   map[string][]Rule
+	TableSchemasMap map[string]TableSchema
 }
 
 // NewCluster creates a Cluster with the given number of nodes and register the nodes to the given network.
@@ -45,6 +45,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 	labgob.Register(Row{})
 
 	tableRulesMap := make(map[string][]Rule)
+	tableSchemasMap := make(map[string]TableSchema)
 
 	nodeIds := make([]string, nodeNum)
 	nodeNamePrefix := "Node"
@@ -67,7 +68,8 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 	}
 
 	// create a cluster with the nodes and the network
-	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName, TableRulesMap: tableRulesMap}
+	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName,
+		TableRulesMap: tableRulesMap, TableSchemasMap: tableSchemasMap}
 	// create a coordinator for the cluster to receive external requests, the steps are similar to those above.
 	// notice that we use the reference of the cluster as the name of the coordinator server,
 	// and the names can be more than strings.
@@ -112,32 +114,21 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 	//TODO lab2
 }
 
-// return datatype of a column in a schema given column name
-func getColTypeByName(schema TableSchema, colName string) int {
-	var colSchemas = schema.ColumnSchemas
-	for _, col := range colSchemas {
-		if col.Name == colName {
-			return col.DataType
-		}
-	}
-	// default to TypeInt32
-	return int(0)
-}
-
 func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 	//schema := params[0]
 	//rules := params[1]
 
 	schema := params[0].(TableSchema)
-	c.schema = schema
+	c.TableSchemasMap[schema.TableName] = schema
+
 	// Check if the table already exists
 	if _, ok := c.TableRulesMap[schema.TableName]; ok {
 		reply = nil
-		fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
+		_ = fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
 	} else {
 		// Parse rules from unstructured json to map
 		var rulesMap map[int]Rule
-		json.Unmarshal(params[1].([]byte), &rulesMap)
+		_ = json.Unmarshal(params[1].([]byte), &rulesMap)
 
 		// Since there are multiple rules, Slice would be a more intuitive structure for it
 		// Convert map_rules from Map to Slice
@@ -152,8 +143,11 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		// fmt.Println(c.TableRulesMap[schema.TableName][0].Column)
 
 		endNamePrefix := "InternalClient"
-		for i := range c.TableRulesMap[schema.TableName] {
-			nodeId := c.nodeIds[i]
+		// Foreach rules of table
+		// We map idx of rule to idx of node
+		// Eg. rules[i] apply to nodes[i]
+		for idx := range c.TableRulesMap[schema.TableName] {
+			nodeId := c.nodeIds[idx]
 			endName := endNamePrefix + nodeId
 			end := c.network.MakeEnd(endName)
 			// connect the client to the node
@@ -161,16 +155,16 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 			// a client should be enabled before being used
 			c.network.Enable(endName, true)
 
-			var colSchemas = make([]ColumnSchema, len(c.TableRulesMap[schema.TableName][i].Column))
-			var colRules = c.TableRulesMap[schema.TableName][i].Column
+			var rule Rule = c.TableRulesMap[schema.TableName][idx]
+
+			var colSchemas = make([]ColumnSchema, len(rule.Column))
 
 			// create column schemas from rules
-			for j, colName := range colRules {
-				colSchemas[j] = ColumnSchema{Name: colName, DataType: getColTypeByName(schema, colName)}
+			for colIdx, colName := range rule.Column {
+				colSchemas[colIdx] = ColumnSchema{Name: colName, DataType: schema.GetColTypeByName(colName)}
 			}
 
 			// create table schema with name specific to node they live on
-			//argument := TableSchema{TableName: "PROJ" + strconv.Itoa(i), ColumnSchemas: colSchemas}
 			argument := TableSchema{TableName: schema.TableName, ColumnSchemas: colSchemas}
 			reply := ""
 
@@ -182,106 +176,40 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 }
 
-func isSatisfiedCondition(conditions []Predicate, val interface{}) bool {
-	var isSatisfied = true
-	switch val.(type) {
-	case int:
-		for _, cond := range conditions {
-			i := float64(val.(int)) - cond.Val.(float64)
-			if !(i > 0 && cond.Op == ">") && !(i >= 0 && cond.Op == ">=") && !(i < 0 && cond.Op == "<") && !(i <= 0 && cond.Op == "<=") && !(i == 0 && cond.Op == "=") && !(i != 0 && cond.Op == "!=") {
-				isSatisfied = false
-			}
-		}
-		//println(val.(int))
-	case string:
-		for _, cond := range conditions {
-			if !(val.(string) == cond.Val.(string) && cond.Op == "=") && !(val.(string) != cond.Val.(string) && cond.Op == "!=") {
-				isSatisfied = false
-			}
-		}
-		//println(val.(string))
-	case float64:
-		for _, cond := range conditions {
-			i := val.(float64) - cond.Val.(float64)
-			if !(i > 0 && cond.Op == ">") && !(i >= 0 && cond.Op == ">=") && !(i < 0 && cond.Op == "<") && !(i <= 0 && cond.Op == "<=") && !(i == 0 && cond.Op == "=") && !(i != 0 && cond.Op == "!=") {
-				isSatisfied = false
-			}
-		}
-		//println(val.(float64))
-	}
-	return isSatisfied
-}
-
-// return datatype of a column in a schema given column name
-func getColIndexByName(schema TableSchema, colName string) int {
-	var colSchemas = schema.ColumnSchemas
-	for index, col := range colSchemas {
-		if col.Name == colName {
-			return index
-		}
-	}
-	// default
-	return -1
-}
-
 func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//tableName := params[0]
 	//row := params[1]
 
-	// TODO
-	// for i, rule in c.TableRulesMap[tableName]
-	//		if rule satisfied:
-	//			write into node[i]
-	//fmt.Println("i'm FragmentWrite")
-	tableName := params[0]
-	//println(params[1].(Row))
-	rows := params[1].(Row)
+	tableName := params[0].(string)
+	// Un-partitioned row (follows cluster's table schema)
+	row := params[1].(Row)
+	schema := c.TableSchemasMap[tableName]
+
 	endNamePrefix := "InternalClient"
+	// Foreach rules of table
+	// We map idx of rule to idx of node
+	// Eg. rules[i] apply to nodes[i]
+	for ruleIdx, rule := range c.TableRulesMap[tableName] {
 
-	/*for _, row := range rows {
-		switch row.(type) {
-		case int:
-			println(row.(int))
-		case string:
-			println(row.(string))
-		case float64:
-			println(row.(float64))
-		}
-	}*/
+		for colName, colConditions := range rule.Predicate {
 
-	for idIndex, rules := range c.TableRulesMap[tableName.(string)] {
-		//fmt.Println(c.nodeIds[idIndex])
-		//fmt.Println(rules)
-
-		//一条rules有多个Predicate(map string[]Predicate),需要同时满足
-		//一个predicate有一个k，即col_name，和多个condition（op，val）
-		for k, conditions := range rules.Predicate {
-			index := getColIndexByName(c.schema, k)
-			if isSatisfiedCondition(conditions, rows[index]) {
-				//println("satisfied")
-				nodeId := c.nodeIds[idIndex]
+			if row.SatisfiesColumnConditions(schema, colName, colConditions) {
+				nodeId := c.nodeIds[ruleIdx]
 				endName := endNamePrefix + nodeId
 				end := c.network.MakeEnd(endName)
 				// connect the client to the node
 				c.network.Connect(endName, nodeId)
 				// a client should be enabled before being used
 				c.network.Enable(endName, true)
-				nodeTableName := tableName.(string)
+
 				var newRow Row
-				for _, colName := range rules.Column {
-					newRow = append(newRow, rows[getColIndexByName(c.schema, colName)])
+				for _, colName := range rule.Column {
+					newRow = append(newRow, row[schema.GetColIndexByName(colName)])
 				}
 				reply := ""
-				end.Call("Node.FragmentWrite", []interface{}{nodeTableName, newRow}, &reply)
+				end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
 				//fmt.Println(reply)
-			} else {
-				//println("not satisfied")
 			}
-
-			//fmt.Println(k)//col name
-			//fmt.Println(conditions[0].Op)
-			//fmt.Println(conditions[0].Val)
 		}
-		//fmt.Println(rules.Column)
 	}
 }

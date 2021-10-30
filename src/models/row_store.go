@@ -32,6 +32,21 @@ func (r *Row) EqualsWithColumnMapping(another *Row, columnMapping []int) bool {
 	return true
 }
 
+
+func (r *Row) SatisfiesColumnConditions(schema TableSchema, colName string, conditions []Condition) bool {
+
+	colIdx, colDataType := schema.GetColumnSchemaByName(colName)
+	var colValue interface{} = (*r)[colIdx]
+
+	for _, condition := range conditions{
+		if !compare(colDataType, condition.Op, colValue, condition.Val){
+			return false
+		}
+	}
+
+	return true
+}
+
 // RowStore manages the storage of rows and provide simple read-write interfaces.
 // Notice that the store does not guarantee any constraints, and it is the responsibility of the caller to check
 // constraints like primary key and uniqueness before calling the methods in RowStore.

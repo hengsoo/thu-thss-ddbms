@@ -7,7 +7,7 @@ type TableSchema struct {
 }
 
 // Get (column idx, column data type) by name
-func (schema *TableSchema) getColumnSchemaByName(colName string) (int, int) {
+func (schema *TableSchema) GetColumnSchemaByName(colName string) (int, int) {
 	var colSchemas = schema.ColumnSchemas
 	for idx, col := range colSchemas {
 		if col.Name == colName {
@@ -19,13 +19,13 @@ func (schema *TableSchema) getColumnSchemaByName(colName string) (int, int) {
 }
 
 // Get column idx by name
-func (schema *TableSchema) getColIndexByName(colName string) int {
-	colIdx, _ := schema.getColumnSchemaByName(colName)
+func (schema *TableSchema) GetColIndexByName(colName string) int {
+	colIdx, _ := schema.GetColumnSchemaByName(colName)
 	return colIdx
 }
 
 // Get column data type by name
-func (schema *TableSchema) getColTypeByName(colName string) int {
-	_, colType := schema.getColumnSchemaByName(colName)
+func (schema *TableSchema) GetColTypeByName(colName string) int {
+	_, colType := schema.GetColumnSchemaByName(colName)
 	return colType
 }

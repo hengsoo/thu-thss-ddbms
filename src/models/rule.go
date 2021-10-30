@@ -2,11 +2,11 @@ package models
 
 // Segmentation Rule for DBMS
 type Rule struct {
-	Predicate map[string][]Predicate
+	Predicate map[string][]Condition
 	Column    []string
 }
 
-type Predicate struct {
+type Condition struct {
 	Op  string
 	Val interface{}
 }
