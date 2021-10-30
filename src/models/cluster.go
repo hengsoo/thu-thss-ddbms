@@ -170,7 +170,8 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 			}
 
 			// create table schema with name specific to node they live on
-			argument := TableSchema{TableName: "PROJ" + strconv.Itoa(i), ColumnSchemas: colSchemas}
+			//argument := TableSchema{TableName: "PROJ" + strconv.Itoa(i), ColumnSchemas: colSchemas}
+			argument := TableSchema{TableName: schema.TableName, ColumnSchemas: colSchemas}
 			reply := ""
 
 			// ampersand (&) to pass as reference. Needed by Node.CreateTable
@@ -236,7 +237,8 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//println(params[1].(Row))
 	rows := params[1].(Row)
 	endNamePrefix := "InternalClient"
-	for _, row := range rows {
+
+	/*for _, row := range rows {
 		switch row.(type) {
 		case int:
 			println(row.(int))
@@ -245,7 +247,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 		case float64:
 			println(row.(float64))
 		}
-	}
+	}*/
 
 	for idIndex, rules := range c.TableRulesMap[tableName.(string)] {
 		fmt.Println(c.nodeIds[idIndex])
@@ -264,9 +266,9 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 				c.network.Connect(endName, nodeId)
 				// a client should be enabled before being used
 				c.network.Enable(endName, true)
-				nodeTableName := "PROJ" + strconv.Itoa(idIndex)
+				nodeTableName := tableName.(string)
 				var newRow Row
-				for _, colName := range rules.Column{
+				for _, colName := range rules.Column {
 					newRow = append(newRow, rows[getColIndexByName(c.schema, colName)])
 				}
 				reply := ""

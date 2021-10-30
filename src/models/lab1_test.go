@@ -56,24 +56,24 @@ func TestLab1Basic(t *testing.T) {
 	network.Enable("client0", true)
 
 	table0 := Dataset{}
-	//end0.Call("Node.ScanTable", budgetTableName, &table0)
-	end0.Call("Node.ScanTable", "PROJ0", &table0)
+	end0.Call("Node.ScanTable", budgetTableName, &table0)
+	//end0.Call("Node.ScanTable", "PROJ0", &table0)
 
 	end1 := network.MakeEnd("client1")
 	network.Connect("client1", "Node1")
 	network.Enable("client1", true)
 
 	table1 := Dataset{}
-	//end1.Call("Node.ScanTable", budgetTableName, &table1)
-	end1.Call("Node.ScanTable", "PROJ1", &table1)
+	end1.Call("Node.ScanTable", budgetTableName, &table1)
+	//end1.Call("Node.ScanTable", "PROJ1", &table1)
 
 	end2 := network.MakeEnd("client2")
 	network.Connect("client2", "Node2")
 	network.Enable("client2", true)
 
 	table2 := Dataset{}
-	//end2.Call("Node.ScanTable", budgetTableName, &table2)
-	end2.Call("Node.ScanTable", "PROJ2", &table2)
+	end2.Call("Node.ScanTable", budgetTableName, &table2)
+	//end2.Call("Node.ScanTable", "PROJ2", &table2)
 
 	expectedDataset0 := Dataset{
 		Schema: TableSchema{
