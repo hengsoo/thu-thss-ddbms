@@ -50,7 +50,8 @@ func (n *Node) PrintTableColumnSchemas() {
 }
 
 func (n *Node) BuildTable(args interface{}, reply *string) {
-	n.CreateTable(args.(*TableSchema))
+	// TODO: error handling
+	_ = n.CreateTable(args.(*TableSchema))
 
 	// uncomment to debug
 	// n.PrintTableColumnSchemas()
@@ -91,7 +92,6 @@ func (n *Node) CreateTable(schema *TableSchema) error {
 // Insert inserts a row into the specified table, and returns nil if succeeds or an error if the table does not exist.
 func (n *Node) Insert(tableName string, row *Row) error {
 	if t, ok := n.TableMap[tableName]; ok {
-		fmt.Printf("inserting to table %s\n", tableName)
 		t.Insert(row)
 		return nil
 	} else {

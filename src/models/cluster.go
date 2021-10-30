@@ -176,7 +176,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 			// ampersand (&) to pass as reference. Needed by Node.CreateTable
 			end.Call("Node.BuildTable", &argument, &reply)
-			fmt.Println(reply)
+			//fmt.Println(reply)
 		}
 	}
 
@@ -192,14 +192,14 @@ func isSatisfiedCondition(conditions []Predicate, val interface{}) bool {
 				isSatisfied = false
 			}
 		}
-		println(val.(int))
+		//println(val.(int))
 	case string:
 		for _, cond := range conditions {
 			if !(val.(string) == cond.Val.(string) && cond.Op == "=") && !(val.(string) != cond.Val.(string) && cond.Op == "!=") {
 				isSatisfied = false
 			}
 		}
-		println(val.(string))
+		//println(val.(string))
 	case float64:
 		for _, cond := range conditions {
 			i := val.(float64) - cond.Val.(float64)
@@ -207,7 +207,7 @@ func isSatisfiedCondition(conditions []Predicate, val interface{}) bool {
 				isSatisfied = false
 			}
 		}
-		println(val.(float64))
+		//println(val.(float64))
 	}
 	return isSatisfied
 }
@@ -232,7 +232,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	// for i, rule in c.TableRulesMap[tableName]
 	//		if rule satisfied:
 	//			write into node[i]
-	fmt.Println("i'm FragmentWrite")
+	//fmt.Println("i'm FragmentWrite")
 	tableName := params[0]
 	//println(params[1].(Row))
 	rows := params[1].(Row)
@@ -250,15 +250,15 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	}*/
 
 	for idIndex, rules := range c.TableRulesMap[tableName.(string)] {
-		fmt.Println(c.nodeIds[idIndex])
-		fmt.Println(rules)
+		//fmt.Println(c.nodeIds[idIndex])
+		//fmt.Println(rules)
 
 		//一条rules有多个Predicate(map string[]Predicate),需要同时满足
 		//一个predicate有一个k，即col_name，和多个condition（op，val）
 		for k, conditions := range rules.Predicate {
 			index := getColIndexByName(c.schema, k)
 			if isSatisfiedCondition(conditions, rows[index]) {
-				println("satisfied")
+				//println("satisfied")
 				nodeId := c.nodeIds[idIndex]
 				endName := endNamePrefix + nodeId
 				end := c.network.MakeEnd(endName)
@@ -273,15 +273,15 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 				}
 				reply := ""
 				end.Call("Node.FragmentWrite", []interface{}{nodeTableName, newRow}, &reply)
-				fmt.Println(reply)
+				//fmt.Println(reply)
 			} else {
-				println("not satisfied")
+				//println("not satisfied")
 			}
 
 			//fmt.Println(k)//col name
 			//fmt.Println(conditions[0].Op)
 			//fmt.Println(conditions[0].Val)
 		}
-		fmt.Println(rules.Column)
+		//fmt.Println(rules.Column)
 	}
 }

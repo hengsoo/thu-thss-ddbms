@@ -258,21 +258,21 @@ func TestLab1Basic(t *testing.T) {
 	}
 
 	if !compareDataset(expectedDataset0, table0) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset0, table0)
+		t.Errorf("0 Incorrect join results, expected %v, actual %v", expectedDataset0, table0)
 	}
 	if !compareDataset(expectedDataset1, table1) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset1, table1)
+		t.Errorf("1 Incorrect join results, expected %v, actual %v", expectedDataset1, table1)
 	}
 	if !compareDataset(expectedDataset2, table2) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset2, table2)
+		t.Errorf("2 Incorrect join results, expected %v, actual %v", expectedDataset2, table2)
 	}
 	if !compareDataset(expectedDataset3, table3) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset3, table3)
+		t.Errorf("3 Incorrect join results, expected %v, actual %v", expectedDataset3, table3)
 	}
 	if !compareDataset(expectedDataset4, table4) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset4, table4)
+		t.Errorf("4 Incorrect join results, expected %v, actual %v", expectedDataset4, table4)
 	}
 	if !compareDataset(expectedDataset5, table5) {
-		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset5, table5)
+		t.Errorf("5 Incorrect join results, expected %v, actual %v", expectedDataset5, table5)
 	}
 }
