@@ -58,6 +58,20 @@ func (n *Node) BuildTable(args interface{}, reply *string) {
 	*reply = fmt.Sprintf("Successfully built table %s for Node %s", args.(*TableSchema).TableName, n.Identifier)
 }
 
+func (n *Node) FragmentWrite(params []interface{}, reply *string) {
+	//tableName := params[0]
+	//row := params[1]
+	//args.(*Row)
+	tableName := params[0].(string)
+	row := params[1].(Row)
+	err := n.Insert(tableName, &row)
+	if err != nil {
+		*reply = fmt.Sprintf("Insert Error")
+	}
+
+	*reply = fmt.Sprintf("Successfully insert row %s for table %s\n", row, tableName)
+}
+
 // CreateTable creates a Table on this node with the provided schema. It returns nil if the table is created
 // successfully, or an error if another table with the same name already exists.
 func (n *Node) CreateTable(schema *TableSchema) error {
@@ -77,6 +91,7 @@ func (n *Node) CreateTable(schema *TableSchema) error {
 // Insert inserts a row into the specified table, and returns nil if succeeds or an error if the table does not exist.
 func (n *Node) Insert(tableName string, row *Row) error {
 	if t, ok := n.TableMap[tableName]; ok {
+		fmt.Printf("inserting to table %s\n", tableName)
 		t.Insert(row)
 		return nil
 	} else {

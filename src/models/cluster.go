@@ -211,6 +211,18 @@ func isSatisfiedCondition(conditions []Predicate, val interface{}) bool {
 	return isSatisfied
 }
 
+// return datatype of a column in a schema given column name
+func getColIndexByName(schema TableSchema, colName string) int {
+	var colSchemas = schema.ColumnSchemas
+	for index, col := range colSchemas {
+		if col.Name == colName {
+			return index
+		}
+	}
+	// default
+	return -1
+}
+
 func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//tableName := params[0]
 	//row := params[1]
@@ -223,7 +235,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	tableName := params[0]
 	//println(params[1].(Row))
 	rows := params[1].(Row)
-
+	endNamePrefix := "InternalClient"
 	for _, row := range rows {
 		switch row.(type) {
 		case int:
@@ -235,26 +247,35 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 		}
 	}
 
-	for nodeId, rules := range c.TableRulesMap[tableName.(string)] {
-		fmt.Println(nodeId)
+	for idIndex, rules := range c.TableRulesMap[tableName.(string)] {
+		fmt.Println(c.nodeIds[idIndex])
 		fmt.Println(rules)
+
 		//一条rules有多个Predicate(map string[]Predicate),需要同时满足
 		//一个predicate有一个k，即col_name，和多个condition（op，val）
 		for k, conditions := range rules.Predicate {
-			for index, col := range c.schema.ColumnSchemas {
-				if k == col.Name {
-					//rows[index]待判断的值
-					println(col.Name)
-					if isSatisfiedCondition(conditions, rows[index]) {
-						println("satisfied")
-					} else {
-						println("not satisfied")
-					}
-					//println(index)
-					//println(col.DataType)
+			index := getColIndexByName(c.schema, k)
+			if isSatisfiedCondition(conditions, rows[index]) {
+				println("satisfied")
+				nodeId := c.nodeIds[idIndex]
+				endName := endNamePrefix + nodeId
+				end := c.network.MakeEnd(endName)
+				// connect the client to the node
+				c.network.Connect(endName, nodeId)
+				// a client should be enabled before being used
+				c.network.Enable(endName, true)
+				nodeTableName := "PROJ" + strconv.Itoa(idIndex)
+				var newRow Row
+				for _, colName := range rules.Column{
+					newRow = append(newRow, rows[getColIndexByName(c.schema, colName)])
 				}
-
+				reply := ""
+				end.Call("Node.FragmentWrite", []interface{}{nodeTableName, newRow}, &reply)
+				fmt.Println(reply)
+			} else {
+				println("not satisfied")
 			}
+
 			//fmt.Println(k)//col name
 			//fmt.Println(conditions[0].Op)
 			//fmt.Println(conditions[0].Val)
