@@ -55,13 +55,13 @@ func compare(dataType int, operator string, valA interface{}, valB interface{}) 
 	case TypeDouble:
 		switch operator {
 		case ">=":
-			return valA.(float64) >= valB.(float64)
+			return float64(valA.(int)) >= valB.(float64)
 		case ">":
-			return valA.(float64) > valB.(float64)
+			return float64(valA.(int)) > valB.(float64)
 		case "<=":
-			return valA.(float64) <= valB.(float64)
+			return float64(valA.(int)) <= valB.(float64)
 		case "<":
-			return valA.(float64) < valB.(float64)
+			return float64(valA.(int)) < valB.(float64)
 		}
 	case TypeString:
 		switch operator {

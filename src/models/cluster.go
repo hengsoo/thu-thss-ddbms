@@ -132,8 +132,8 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 		// Since there are multiple rules, Slice would be a more intuitive structure for it
 		// Convert map_rules from Map to Slice
-		for _, value := range rulesMap {
-			c.TableRulesMap[schema.TableName] = append(c.TableRulesMap[schema.TableName], value)
+		for i := 0; i < len(rulesMap); i++ {
+			c.TableRulesMap[schema.TableName] = append(c.TableRulesMap[schema.TableName], rulesMap[i])
 		}
 
 		// Example usage of rules
@@ -191,25 +191,33 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	// Eg. rules[i] apply to nodes[i]
 	for ruleIdx, rule := range c.TableRulesMap[tableName] {
 
+		isAllPredicatesSatisfied := true
+
 		for colName, colConditions := range rule.Predicate {
-
-			if row.SatisfiesColumnConditions(schema, colName, colConditions) {
-				nodeId := c.nodeIds[ruleIdx]
-				endName := endNamePrefix + nodeId
-				end := c.network.MakeEnd(endName)
-				// connect the client to the node
-				c.network.Connect(endName, nodeId)
-				// a client should be enabled before being used
-				c.network.Enable(endName, true)
-
-				var newRow Row
-				for _, colName := range rule.Column {
-					newRow = append(newRow, row[schema.GetColIndexByName(colName)])
-				}
-				reply := ""
-				end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
-				//fmt.Println(reply)
+			if !row.SatisfiesColumnConditions(schema, colName, colConditions) {
+				isAllPredicatesSatisfied = false
+				break
 			}
 		}
+
+		if isAllPredicatesSatisfied == false {
+			continue
+		}
+
+		nodeId := c.nodeIds[ruleIdx]
+		endName := endNamePrefix + nodeId
+		end := c.network.MakeEnd(endName)
+		// connect the client to the node
+		c.network.Connect(endName, nodeId)
+		// a client should be enabled before being used
+		c.network.Enable(endName, true)
+
+		var newRow Row
+		for _, colName := range rule.Column {
+			newRow = append(newRow, row[schema.GetColIndexByName(colName)])
+		}
+
+		end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
+		//fmt.Println(reply)
 	}
 }
