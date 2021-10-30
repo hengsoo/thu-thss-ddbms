@@ -10,7 +10,7 @@ const (
 	TypeString
 )
 
-func compare(dataType int, operator string, valA interface{}, valB interface{}) bool{
+func compare(dataType int, operator string, valA interface{}, valB interface{}) bool {
 
 	if operator == "==" {
 		return valA == valB
