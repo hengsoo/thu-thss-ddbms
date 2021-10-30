@@ -26,6 +26,7 @@ type Cluster struct {
 
 	// Segmentation rules for tables
 	TableRulesMap map[string][]Rule
+	schema        TableSchema
 }
 
 // NewCluster creates a Cluster with the given number of nodes and register the nodes to the given network.
@@ -128,7 +129,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 	//rules := params[1]
 
 	schema := params[0].(TableSchema)
-
+	c.schema = schema
 	// Check if the table already exists
 	if _, ok := c.TableRulesMap[schema.TableName]; ok {
 		reply = nil
@@ -180,6 +181,36 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 }
 
+func isSatisfiedCondition(conditions []Predicate, val interface{}) bool {
+	var isSatisfied = true
+	switch val.(type) {
+	case int:
+		for _, cond := range conditions {
+			i := float64(val.(int)) - cond.Val.(float64)
+			if !(i > 0 && cond.Op == ">") && !(i >= 0 && cond.Op == ">=") && !(i < 0 && cond.Op == "<") && !(i <= 0 && cond.Op == "<=") && !(i == 0 && cond.Op == "=") && !(i != 0 && cond.Op == "!=") {
+				isSatisfied = false
+			}
+		}
+		println(val.(int))
+	case string:
+		for _, cond := range conditions {
+			if !(val.(string) == cond.Val.(string) && cond.Op == "=") && !(val.(string) != cond.Val.(string) && cond.Op == "!=") {
+				isSatisfied = false
+			}
+		}
+		println(val.(string))
+	case float64:
+		for _, cond := range conditions {
+			i := val.(float64) - cond.Val.(float64)
+			if !(i > 0 && cond.Op == ">") && !(i >= 0 && cond.Op == ">=") && !(i < 0 && cond.Op == "<") && !(i <= 0 && cond.Op == "<=") && !(i == 0 && cond.Op == "=") && !(i != 0 && cond.Op == "!=") {
+				isSatisfied = false
+			}
+		}
+		println(val.(float64))
+	}
+	return isSatisfied
+}
+
 func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//tableName := params[0]
 	//row := params[1]
@@ -188,4 +219,46 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	// for i, rule in c.TableRulesMap[tableName]
 	//		if rule satisfied:
 	//			write into node[i]
+	fmt.Println("i'm FragmentWrite")
+	tableName := params[0]
+	//println(params[1].(Row))
+	rows := params[1].(Row)
+
+	for _, row := range rows {
+		switch row.(type) {
+		case int:
+			println(row.(int))
+		case string:
+			println(row.(string))
+		case float64:
+			println(row.(float64))
+		}
+	}
+
+	for nodeId, rules := range c.TableRulesMap[tableName.(string)] {
+		fmt.Println(nodeId)
+		fmt.Println(rules)
+		//一条rules有多个Predicate(map string[]Predicate),需要同时满足
+		//一个predicate有一个k，即col_name，和多个condition（op，val）
+		for k, conditions := range rules.Predicate {
+			for index, col := range c.schema.ColumnSchemas {
+				if k == col.Name {
+					//rows[index]待判断的值
+					println(col.Name)
+					if isSatisfiedCondition(conditions, rows[index]) {
+						println("satisfied")
+					} else {
+						println("not satisfied")
+					}
+					//println(index)
+					//println(col.DataType)
+				}
+
+			}
+			//fmt.Println(k)//col name
+			//fmt.Println(conditions[0].Op)
+			//fmt.Println(conditions[0].Val)
+		}
+		fmt.Println(rules.Column)
+	}
 }
