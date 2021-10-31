@@ -54,7 +54,7 @@ func (n *Node) BuildTable(args interface{}, reply *string) {
 	_ = n.CreateTable(args.(*TableSchema))
 
 	// uncomment to debug
-	n.PrintTableColumnSchemas()
+	//n.PrintTableColumnSchemas()
 
 	*reply = fmt.Sprintf("Successfully built table %s for Node %s", args.(*TableSchema).TableName, n.Identifier)
 }
