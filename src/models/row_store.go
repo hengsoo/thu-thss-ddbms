@@ -38,7 +38,7 @@ func (r *Row) SatisfiesColumnConditions(schema TableSchema, colName string, cond
 	var colValue interface{} = (*r)[colIdx]
 
 	for _, condition := range conditions {
-		if !compare(colDataType, condition.Op, colValue, condition.Val) {
+		if !Compare(colDataType, condition.Op, colValue, condition.Val) {
 			return false
 		}
 	}
