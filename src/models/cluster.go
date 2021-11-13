@@ -108,6 +108,25 @@ func (c *Cluster) SayHello(visitor string, reply *string) {
 	*reply = fmt.Sprintf("Hello %s, I am the coordinator of %s", visitor, c.Name)
 }
 
+// GetFullTableDataset by joining all the tables with the same name in all relevant nodes.
+// The return Dataset will have a complete tableSchema as stored in the cluster.
+// The join is based on primary key of each tables. The first column in each nodes' tableSchema is assumed to be the PK.
+func (c *Cluster) GetFullTableDataset(tableName string) Dataset {
+	// TODO
+	// Get table schema
+	// Iterate node by relevant rule
+	// Iterate node's table rowstore iterator,
+	// and insert/merge row by primary key
+	return Dataset{}
+}
+
+// NaturalJoinDataset by matching all common columns.
+// Datasets are passed as references to avoid expensive copying.
+func (c *Cluster) NaturalJoinDataset(datasetsPtr []*Dataset) Dataset {
+	// TODO
+	return Dataset{}
+}
+
 // Join all tables in the given list using NATURAL JOIN (join on the common columns), and return the joined result
 // as a list of rows and set it to reply.
 func (c *Cluster) Join(tableNames []string, reply *Dataset) {
