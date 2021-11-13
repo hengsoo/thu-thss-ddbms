@@ -25,7 +25,9 @@ type Cluster struct {
 	Name string
 
 	// Segmentation rules for tables
-	TableRulesMap   map[string][]Rule
+	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+	TableRulesMap map[string]map[string]Rule
+	// TableSchemasMap[tableName] -> TableSchema
 	TableSchemasMap map[string]TableSchema
 }
 
@@ -44,7 +46,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 	labgob.Register(TableSchema{})
 	labgob.Register(Row{})
 
-	tableRulesMap := make(map[string][]Rule)
+	tableRulesMap := make(map[string]map[string]Rule)
 	tableSchemasMap := make(map[string]TableSchema)
 
 	nodeIds := make([]string, nodeNum)
@@ -146,35 +148,28 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		_ = fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
 	} else {
 		// Parse rules from unstructured json to map
-		var rulesMap map[int]Rule
+		var rulesMap map[string]Rule
 		_ = json.Unmarshal(params[1].([]byte), &rulesMap)
-
-		// Since there are multiple rules, Slice would be a more intuitive structure for it
-		// Convert map_rules from Map to Slice
-		for i := 0; i < len(rulesMap); i++ {
-			c.TableRulesMap[schema.TableName] = append(c.TableRulesMap[schema.TableName], rulesMap[i])
-		}
+		c.TableRulesMap[schema.TableName] = rulesMap
 
 		// Example usage of rules
 		// fmt.Println("Rules")
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Op)
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Predicate["BUDGET"][0].Val)
-		// fmt.Println(c.TableRulesMap[schema.TableName][0].Column)
+		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Op)
+		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Val)
+		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Column)
 
 		endNamePrefix := "InternalClient"
 		// Foreach rules of table
-		// We map idx of rule to idx of node
-		// Eg. rules[i] apply to nodes[i]
-		for idx := range c.TableRulesMap[schema.TableName] {
-			nodeId := c.nodeIds[idx]
+		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
+			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+			nodeId := c.nodeIds[nodeIdx]
 			endName := endNamePrefix + nodeId
 			end := c.network.MakeEnd(endName)
 			// connect the client to the node
 			c.network.Connect(endName, nodeId)
 			// a client should be enabled before being used
 			c.network.Enable(endName, true)
-
-			var rule Rule = c.TableRulesMap[schema.TableName][idx]
 
 			var colSchemas = make([]ColumnSchema, len(rule.Column))
 
@@ -206,9 +201,8 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 
 	endNamePrefix := "InternalClient"
 	// Foreach rules of table
-	// We map idx of rule to idx of node
-	// Eg. rules[i] apply to nodes[i]
-	for ruleIdx, rule := range c.TableRulesMap[tableName] {
+	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+	for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
 
 		isAllPredicatesSatisfied := true
 
@@ -223,7 +217,8 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 			continue
 		}
 
-		nodeId := c.nodeIds[ruleIdx]
+		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
 		end := c.network.MakeEnd(endName)
 		// connect the client to the node
