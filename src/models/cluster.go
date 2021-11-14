@@ -187,7 +187,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 
 // NaturalJoinDataset by matching all common columns.
 // Datasets are passed as references to avoid expensive copying.
-func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
+func (c *Cluster) NaturalJoinDatasets(datasetPtrs []*Dataset) (Dataset, error) {
 
 	datasetPtrsLen := len(datasetPtrs)
 
@@ -220,9 +220,10 @@ func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
 			}
 		}
 
-		// If there are no common columns, clear result
+		// If there are no common columns, clear result and short-circuit
 		if len(commonColsIdxMap) == 0 {
 			result = Dataset{}
+			fmt.Println("Natural Join(s) has(have) no common columns.")
 			return result, nil
 		}
 
@@ -232,7 +233,7 @@ func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
 		result.Schema.ColumnSchemas = append(result.Schema.ColumnSchemas, tempColSchemas...)
 
 		// Matching each row
-		hasMatchingResult := false
+		hasJoinResult := false
 		for _, datasetRow := range dataset.Rows {
 			for resultRowIdx := 0; resultRowIdx < beforeJoinResultRowLen; resultRowIdx++ {
 				resultRow := result.Rows[resultRowIdx]
@@ -246,7 +247,7 @@ func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
 				}
 
 				if matched {
-					hasMatchingResult = true
+					hasJoinResult = true
 					var appendRowPtr *Row = &result.Rows[resultRowIdx]
 
 					// If there are duplicate matches, copy and insert data
@@ -269,8 +270,10 @@ func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
 			}
 		}
 
-		if !hasMatchingResult {
+		// If a dataset has no join result, clear result's rows and short-circuit
+		if !hasJoinResult {
 			result.Rows = nil
+			fmt.Println("Natural Join(s) has(have) no matching results.")
 			return result, nil
 		}
 	}
@@ -281,7 +284,6 @@ func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
 // Join all tables in the given list using NATURAL JOIN (join on the common columns), and return the joined result
 // as a list of rows and set it to reply.
 func (c *Cluster) Join(tableNames []string, reply *Dataset) {
-	// TODO
 	// GetFullTableDataset of tableNames
 	datasetPtrs := make([]*Dataset, len(tableNames))
 	var err error
@@ -296,7 +298,7 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 	}
 
 	// Then join them using NaturalJoinDataset
-	if result, err := c.NaturalJoinDataset(datasetPtrs); err != nil {
+	if result, err := c.NaturalJoinDatasets(datasetPtrs); err != nil {
 		reply = nil
 		fmt.Println(err.Error())
 	} else {
