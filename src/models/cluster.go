@@ -4,6 +4,7 @@ import (
 	"../labgob"
 	"../labrpc"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 )
@@ -113,13 +114,68 @@ func (c *Cluster) SayHello(visitor string, reply *string) {
 // GetFullTableDataset by joining all the tables with the same name in all relevant nodes.
 // The return Dataset will have a complete tableSchema as stored in the cluster.
 // The join is based on primary key of each tables. The first column in each nodes' tableSchema is assumed to be the PK.
-func (c *Cluster) GetFullTableDataset(tableName string) Dataset {
+func (c *Cluster) GetFullTableDataset(tableName string) (Dataset, error) {
 	// TODO
 	// Get table schema
-	// Iterate node by relevant rule
-	// Iterate node's table rowstore iterator,
-	// and insert/merge row by primary key
-	return Dataset{}
+	// Check if the table already exists
+	if _, ok := c.TableSchemasMap[tableName]; ok {
+		result := Dataset{}
+		result.Schema = c.TableSchemasMap[tableName]
+
+		// Map of primary key to its row
+		// The first column in each nodes' tableSchema is assumed to be the PK.
+		rows := make(map[interface{}]Row)
+		rowColumnsLen := len(result.Schema.ColumnSchemas)
+
+		// Iterate node by relevant rule
+		// Get partial row data from each node
+		endNamePrefix := "InternalClient"
+		for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
+
+			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+			nodeId := c.nodeIds[nodeIdx]
+			endName := endNamePrefix + nodeId
+			end := c.network.MakeEnd(endName)
+			// connect the client to the node
+			c.network.Connect(endName, nodeId)
+			// a client should be enabled before being used
+			c.network.Enable(endName, true)
+
+			var insertColIdxs []int
+			for _, insertColName := range rule.Column {
+				insertColIdxs = append(insertColIdxs, result.Schema.GetColIndexByName(insertColName))
+			}
+
+			var nodeTable Table
+			end.Call("Node.GetTable", tableName, &nodeTable)
+			var nodeRowIterator RowIterator = nodeTable.rowStore.iterator()
+
+			for nodeRowIterator.HasNext() {
+				var nodeRowPtr *Row = nodeRowIterator.Next()
+				var primaryKey interface{} = (*nodeRowPtr)[0]
+				// If PK doesn't exist, create new Row
+				if _, ok := rows[primaryKey]; !ok {
+					rows[primaryKey] = make(Row, rowColumnsLen)
+				}
+				// Insert data into rows
+				for nodeColIdx, insertColIdx := range insertColIdxs {
+					rows[primaryKey][insertColIdx] = (*nodeRowPtr)[nodeColIdx]
+				}
+			}
+
+		}
+
+		// Add rows to result
+		for _, row := range rows {
+			result.Rows = append(result.Rows, row)
+		}
+
+		return result, nil
+	} else {
+		// If table doesn't exist
+		return Dataset{}, errors.New("Table " + tableName + " doesn't exist.")
+	}
+
 }
 
 // NaturalJoinDataset by matching all common columns.
@@ -132,7 +188,18 @@ func (c *Cluster) NaturalJoinDataset(datasetsPtr []*Dataset) Dataset {
 // Join all tables in the given list using NATURAL JOIN (join on the common columns), and return the joined result
 // as a list of rows and set it to reply.
 func (c *Cluster) Join(tableNames []string, reply *Dataset) {
-	//TODO lab2
+	// TODO
+	// GetFullTableDataset of tableNames
+	tablesDataset := make([]Dataset, len(tableNames))
+	var err error
+	for i, tableName := range tableNames {
+		tablesDataset[i], err = c.GetFullTableDataset(tableName)
+		if err != nil {
+			reply = nil
+			fmt.Println(err.Error())
+		}
+	}
+	// Then join them using NaturalJoinDataset
 }
 
 func (c *Cluster) BuildTable(params []interface{}, reply *string) {

@@ -121,6 +121,10 @@ func (n *Node) IterateTable(tableName string) (RowIterator, error) {
 	}
 }
 
+func (n *Node) GetTableRowIterator(args interface{}, reply *RowIterator) {
+	*reply, _ = n.IterateTable(args.(string))
+}
+
 // IterateTable returns the count of rows in a table. It returns (cnt, nil) if the Table can be found, or (-1, err)
 // if the Table does not exist.
 func (n *Node) count(tableName string) (int, error) {
