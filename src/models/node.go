@@ -121,8 +121,20 @@ func (n *Node) IterateTable(tableName string) (RowIterator, error) {
 	}
 }
 
-func (n *Node) GetTableRowIterator(args interface{}, reply *RowIterator) {
-	*reply, _ = n.IterateTable(args.(string))
+func (n *Node) GetTableDataset(args interface{}, reply *Dataset) {
+	tableName := args.(string)
+
+	if table, ok := n.TableMap[tableName]; ok {
+		reply.Schema = *table.schema
+		rowIterator, _ := n.IterateTable(tableName)
+
+		for rowIterator.HasNext() {
+			reply.Rows = append(reply.Rows, *rowIterator.Next())
+		}
+
+	} else {
+		reply = nil
+	}
 }
 
 // IterateTable returns the count of rows in a table. It returns (cnt, nil) if the Table can be found, or (-1, err)

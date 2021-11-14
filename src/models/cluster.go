@@ -146,20 +146,18 @@ func (c *Cluster) GetFullTableDataset(tableName string) (Dataset, error) {
 				insertColIdxs = append(insertColIdxs, result.Schema.GetColIndexByName(insertColName))
 			}
 
-			var nodeTable Table
-			end.Call("Node.GetTable", tableName, &nodeTable)
-			var nodeRowIterator RowIterator = nodeTable.rowStore.iterator()
+			var nodeTableDataset Dataset
+			end.Call("Node.GetTableDataset", tableName, &nodeTableDataset)
 
-			for nodeRowIterator.HasNext() {
-				var nodeRowPtr *Row = nodeRowIterator.Next()
-				var primaryKey interface{} = (*nodeRowPtr)[0]
+			for _, nodeRow := range nodeTableDataset.Rows {
+				var primaryKey interface{} = nodeRow[0]
 				// If PK doesn't exist, create new Row
 				if _, ok := rows[primaryKey]; !ok {
 					rows[primaryKey] = make(Row, rowColumnsLen)
 				}
 				// Insert data into rows
 				for nodeColIdx, insertColIdx := range insertColIdxs {
-					rows[primaryKey][insertColIdx] = (*nodeRowPtr)[nodeColIdx]
+					rows[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
 				}
 			}
 
