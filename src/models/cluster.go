@@ -113,19 +113,18 @@ func (c *Cluster) SayHello(visitor string, reply *string) {
 
 // GetFullTableDataset by joining all the tables with the same name in all relevant nodes.
 // The return Dataset will have a complete tableSchema as stored in the cluster.
-// The join is based on primary key of each tables. The first column in each nodes' tableSchema is assumed to be the PK.
-func (c *Cluster) GetFullTableDataset(tableName string) (Dataset, error) {
-	// TODO
+// The join is based on primary key of each table. The first column in each nodes' tableSchema is assumed to be the PK.
+func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 	// Get table schema
 	// Check if the table already exists
 	if _, ok := c.TableSchemasMap[tableName]; ok {
-		result := Dataset{}
+		*result = Dataset{}
 		result.Schema = c.TableSchemasMap[tableName]
 
 		// Map of primary key to its row
-		// The first column in each nodes' tableSchema is assumed to be the PK.
-		rows := make(map[interface{}]Row)
-		rowColumnsLen := len(result.Schema.ColumnSchemas)
+		// The first column in each node' tableSchema is assumed to be the PK.
+		pkRowMap := make(map[interface{}]Row)
+		fullTableColumnsLen := len(result.Schema.ColumnSchemas)
 
 		// Iterate node by relevant rule
 		// Get partial row data from each node
@@ -149,38 +148,134 @@ func (c *Cluster) GetFullTableDataset(tableName string) (Dataset, error) {
 			var nodeTableDataset Dataset
 			end.Call("Node.GetTableDataset", tableName, &nodeTableDataset)
 
+			// Insert/Merge rows
 			for _, nodeRow := range nodeTableDataset.Rows {
-				var primaryKey interface{} = nodeRow[0]
-				// If PK doesn't exist, create new Row
-				if _, ok := rows[primaryKey]; !ok {
-					rows[primaryKey] = make(Row, rowColumnsLen)
+
+				// If the nodeRow schema is complete, just insert it to the result
+				// !! Duplication is not handled here !!
+				if len(nodeRow) == fullTableColumnsLen {
+					result.Rows = append(result.Rows, nodeRow)
+				} else {
+					// Else nodeRow schema is partial, merge it to pkRowMap
+					var primaryKey interface{} = nodeRow[0]
+					// If PK doesn't exist, create new Row
+					if _, ok := pkRowMap[primaryKey]; !ok {
+						pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
+					}
+					// Insert data into rows
+					for nodeColIdx, insertColIdx := range insertColIdxs {
+						pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
+					}
 				}
-				// Insert data into rows
-				for nodeColIdx, insertColIdx := range insertColIdxs {
-					rows[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
-				}
+
 			}
 
 		}
 
 		// Add rows to result
-		for _, row := range rows {
+		for _, row := range pkRowMap {
 			result.Rows = append(result.Rows, row)
 		}
 
-		return result, nil
+		return nil
 	} else {
 		// If table doesn't exist
-		return Dataset{}, errors.New("Table " + tableName + " doesn't exist.")
+		return errors.New("table " + tableName + " doesn't exist")
 	}
 
 }
 
 // NaturalJoinDataset by matching all common columns.
 // Datasets are passed as references to avoid expensive copying.
-func (c *Cluster) NaturalJoinDataset(datasetsPtr []*Dataset) Dataset {
-	// TODO
-	return Dataset{}
+func (c *Cluster) NaturalJoinDataset(datasetPtrs []*Dataset) (Dataset, error) {
+
+	datasetPtrsLen := len(datasetPtrs)
+
+	if datasetPtrsLen < 2 {
+		return Dataset{}, errors.New("number of datasetPtrs should be more than 2")
+	}
+
+	result := Dataset{}
+
+	// Joined tableName should be empty
+	result.Schema.TableName = ""
+	result.Schema = datasetPtrs[0].Schema
+	result.Rows = datasetPtrs[0].Rows
+
+	for datasetPtrIdx := 1; datasetPtrIdx < datasetPtrsLen; datasetPtrIdx++ {
+
+		dataset := *datasetPtrs[datasetPtrIdx]
+
+		// Map dataset, result common column indexes
+		commonColsIdxMap := make(map[int]int)
+		var tempColSchemas []ColumnSchema
+		for datasetColIdx, datasetColSchema := range dataset.Schema.ColumnSchemas {
+			resultColIdx := result.Schema.GetColIndexByName(datasetColSchema.Name)
+			// If there is a common column, add it to commonColsIdx
+			if resultColIdx != -1 {
+				commonColsIdxMap[datasetColIdx] = resultColIdx
+			} else {
+				//	Else add the schema into tempColSchemas
+				tempColSchemas = append(tempColSchemas, datasetColSchema)
+			}
+		}
+
+		// If there are no common columns, clear result
+		if len(commonColsIdxMap) == 0 {
+			result = Dataset{}
+			return result, nil
+		}
+
+		// Add tempColSchemas to result
+		beforeJoinResultRowLen := len(result.Rows)
+		beforeJoinResultColLen := len(result.Schema.ColumnSchemas)
+		result.Schema.ColumnSchemas = append(result.Schema.ColumnSchemas, tempColSchemas...)
+
+		// Matching each row
+		hasMatchingResult := false
+		for _, datasetRow := range dataset.Rows {
+			for resultRowIdx := 0; resultRowIdx < beforeJoinResultRowLen; resultRowIdx++ {
+				resultRow := result.Rows[resultRowIdx]
+				// Check conditions
+				matched := true
+				for datasetColIdx, resultColIdx := range commonColsIdxMap {
+					if resultRow[resultColIdx] != datasetRow[datasetColIdx] {
+						matched = false
+						break
+					}
+				}
+
+				if matched {
+					hasMatchingResult = true
+					var appendRowPtr *Row = &result.Rows[resultRowIdx]
+
+					// If there are duplicate matches, copy and insert data
+					if len(*appendRowPtr) > beforeJoinResultColLen {
+						newRow := make(Row, beforeJoinResultColLen)
+						// Note: copy(dst, src) copies min(len(dst), len(src)) elements.
+						copy(newRow, result.Rows[resultRowIdx])
+						result.Rows = append(result.Rows, newRow)
+						// Set the appended row
+						appendRowPtr = &result.Rows[len(result.Rows)-1]
+					}
+
+					// Append non-common columns data
+					for datasetColIdx, datasetColVal := range datasetRow {
+						if _, ok := commonColsIdxMap[datasetColIdx]; !ok {
+							*appendRowPtr = append(*appendRowPtr, datasetColVal)
+						}
+					}
+				}
+			}
+		}
+
+		if !hasMatchingResult {
+			result.Rows = nil
+			return result, nil
+		}
+	}
+
+	return result, nil
 }
 
 // Join all tables in the given list using NATURAL JOIN (join on the common columns), and return the joined result
@@ -188,16 +283,25 @@ func (c *Cluster) NaturalJoinDataset(datasetsPtr []*Dataset) Dataset {
 func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 	// TODO
 	// GetFullTableDataset of tableNames
-	tablesDataset := make([]Dataset, len(tableNames))
+	datasetPtrs := make([]*Dataset, len(tableNames))
 	var err error
 	for i, tableName := range tableNames {
-		tablesDataset[i], err = c.GetFullTableDataset(tableName)
+		datasetPtrs[i] = &Dataset{}
+		err = c.GetFullTableDataset(tableName, datasetPtrs[i])
 		if err != nil {
 			reply = nil
 			fmt.Println(err.Error())
+			return
 		}
 	}
+
 	// Then join them using NaturalJoinDataset
+	if result, err := c.NaturalJoinDataset(datasetPtrs); err != nil {
+		reply = nil
+		fmt.Println(err.Error())
+	} else {
+		*reply = result
+	}
 }
 
 func (c *Cluster) BuildTable(params []interface{}, reply *string) {
@@ -224,7 +328,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Column)
 
 		endNamePrefix := "InternalClient"
-		// Foreach rules of table
+		// Foreach rule of table
 		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
 		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
 			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
@@ -265,7 +369,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	schema := c.TableSchemasMap[tableName]
 
 	endNamePrefix := "InternalClient"
-	// Foreach rules of table
+	// Foreach rule of table
 	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
 	for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
 

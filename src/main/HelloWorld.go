@@ -91,7 +91,7 @@ func main() {
 	//if !models.compareDataset(expectedDataset, results) {
 	//	_ = fmt.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset, results)
 	//}
-
+	return
 }
 
 func defineTables() {

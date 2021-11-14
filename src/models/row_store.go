@@ -34,7 +34,7 @@ func (r *Row) EqualsWithColumnMapping(another *Row, columnMapping []int) bool {
 
 func (r *Row) SatisfiesColumnConditions(schema TableSchema, colName string, conditions []Condition) bool {
 
-	colIdx, colDataType := schema.GetColumnSchemaByName(colName)
+	colIdx, colDataType := schema.GetColumnByName(colName)
 	var colValue interface{} = (*r)[colIdx]
 
 	for _, condition := range conditions {
