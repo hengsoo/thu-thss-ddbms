@@ -206,7 +206,7 @@ func (c *Cluster) NaturalJoinDatasets(datasetPtrs []*Dataset) (Dataset, error) {
 
 		dataset := *datasetPtrs[datasetPtrIdx]
 
-		// Map dataset, result common column indexes
+		// Map dataset -> result common column indexes
 		commonColsIdxMap := make(map[int]int)
 		var tempColSchemas []ColumnSchema
 		for datasetColIdx, datasetColSchema := range dataset.Schema.ColumnSchemas {
