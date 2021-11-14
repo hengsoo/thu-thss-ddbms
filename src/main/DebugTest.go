@@ -25,8 +25,9 @@ var joinedTableContent []models.Row
 var studentTablePartitionRules []byte
 var courseRegistrationTablePartitionRules []byte
 
-// main is an example about how to create a cluster, visit the cluster from outside it, and inject some errors to the
-// cluster. We will test your implementation using similar approaches.
+// This file is used to debug tests.
+// Copy and paste test's content here and run as debug mode to debug.
+// Note: this is done so due to lack of debugging support in running tests (Intellij IDE).
 func main() {
 
 	setup()
