@@ -308,6 +308,43 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 	}
 }
 
+// Semi Join first TWO* tables in the given list using provided column name
+// Set reply as a Dataset of the joined results.
+func (c *Cluster) SemiJoin(tableNames []string, onJoinColName string, reply *Dataset) {
+
+	var dataset1 *Dataset = nil
+	var dataset2 *Dataset = nil
+
+	// TODO error handling
+	c.GetFullTableDataset(tableNames[0], dataset1)
+	c.GetFullTableDataset(tableNames[1], dataset2)
+
+	if dataset1.Schema.GetColIndexByName(onJoinColName) == -1 || dataset2.Schema.GetColIndexByName(onJoinColName) == -1 {
+		reply = nil
+		fmt.Println("Column to join doesn't exist in both table")
+		return
+	}
+
+	srcColIndex := int(dataset2.Schema.GetColIndexByName(onJoinColName))
+
+	rowItemExistsMap := make(map[interface{}]bool)
+
+	for _, row := range dataset2.Rows {
+		rowItemExistsMap[row[srcColIndex]] = true
+	}
+
+	*reply = Dataset{}
+	reply.Schema = dataset1.Schema
+
+	tgtColIndex := int(dataset1.Schema.GetColIndexByName(onJoinColName))
+
+	for _, row := range dataset1.Rows {
+		if rowItemExistsMap[row[tgtColIndex]] {
+			reply.Rows = append(reply.Rows, row)
+		}
+	}
+}
+
 func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 	//schema := params[0]
 	//rules := params[1]

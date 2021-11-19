@@ -4,7 +4,6 @@ import (
 	"testing"
 )
 
-
 // Multiple Tables Join I
 func TestLab2Additional3TablesJoin(t *testing.T) {
 	// TODO
