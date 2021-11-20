@@ -310,25 +310,49 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 
 // Semi Join first TWO* tables in the given list using provided column name
 // Set reply as a Dataset of the joined results.
-func (c *Cluster) SemiJoin(tableNames []string, onJoinColName string, reply *Dataset) {
+func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
-	var dataset1 *Dataset = nil
-	var dataset2 *Dataset = nil
+	// the column name to join the two tables on
+	var onJoinColName = params[0]
 
-	// TODO error handling
-	c.GetFullTableDataset(tableNames[0], dataset1)
-	c.GetFullTableDataset(tableNames[1], dataset2)
+	datasetPtrs := make([]*Dataset, len(params) - 1)
 
+	var err error
+
+	// get full dataset for each table name
+	for i, tableName := range params {
+		// first item should be column name to join on, skip
+		if i == 0 {
+			continue
+		}
+		// initialize dataset pointer
+		datasetPtrs[i-1] = &Dataset{}
+
+		// get full dataset and store it into list of pointer, -1 for the offset of provided column name
+		err = c.GetFullTableDataset(tableName, datasetPtrs[i-1])
+		if err != nil {
+			reply = nil
+			fmt.Println(err.Error())
+			return
+		}
+	}
+	dataset1 := datasetPtrs[0]
+	dataset2 := datasetPtrs[1]
+
+	// short circuit and return if both tables doesn't have the column to join on
 	if dataset1.Schema.GetColIndexByName(onJoinColName) == -1 || dataset2.Schema.GetColIndexByName(onJoinColName) == -1 {
 		reply = nil
 		fmt.Println("Column to join doesn't exist in both table")
 		return
 	}
 
+	// index of column to be joined on, in table 2, call it source table
 	srcColIndex := int(dataset2.Schema.GetColIndexByName(onJoinColName))
 
+	// a hashmap storing the possible values in the on-join column in table 2
 	rowItemExistsMap := make(map[interface{}]bool)
 
+	// set the value to true indicating it exists
 	for _, row := range dataset2.Rows {
 		rowItemExistsMap[row[srcColIndex]] = true
 	}
@@ -336,8 +360,10 @@ func (c *Cluster) SemiJoin(tableNames []string, onJoinColName string, reply *Dat
 	*reply = Dataset{}
 	reply.Schema = dataset1.Schema
 
+	// index of column to be joined on, in table 1, the table with the schema to be returned
 	tgtColIndex := int(dataset1.Schema.GetColIndexByName(onJoinColName))
 
+	// only add the rows that have existing counterpart in on join column in table 2
 	for _, row := range dataset1.Rows {
 		if rowItemExistsMap[row[tgtColIndex]] {
 			reply.Rows = append(reply.Rows, row)
