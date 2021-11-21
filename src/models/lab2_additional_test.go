@@ -3,11 +3,31 @@ package models
 import (
 	"../labrpc"
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
-func defineMultiTables(){
+const teacherTableName = "teacher"
+const studentClassTableName = "studentClass"
+const teacherSchoolTableName = "teacherSchool"
+
+var teacherTableSchema *TableSchema
+var studentClassTableSchema *TableSchema
+var teacherSchoolTableSchema *TableSchema
+
+var teacherRows []Row
+var studentClassRows []Row
+var teacherSchoolRows []Row
+
+var joined3TableSchema TableSchema
+var joined3TableContent []Row
+var joined5TableSchema TableSchema
+var joined5TableContent []Row
+
+var teacherTablePartitionRules []byte
+var studentClassTablePartitionRules []byte
+var teacherSchoolTablePartitionRules []byte
+
+func defineMultiTables() {
 	studentTableSchema = &TableSchema{TableName: studentTableName, ColumnSchemas: []ColumnSchema{
 		{Name: "sid", DataType: TypeInt32},
 		{Name: "name", DataType: TypeString},
@@ -19,7 +39,6 @@ func defineMultiTables(){
 		{Name: "sid", DataType: TypeInt32},
 		{Name: "courseId", DataType: TypeInt32},
 	}}
-
 
 	teacherTableSchema = &TableSchema{TableName: teacherTableName, ColumnSchemas: []ColumnSchema{
 		{Name: "tid", DataType: TypeInt32},
@@ -68,7 +87,6 @@ func defineMultiTables(){
 		{1, "SEM"},
 		{2, "CS"},
 	}
-
 
 	joined3TableSchema = TableSchema{
 		"",
@@ -444,7 +462,6 @@ func TestLab2Additional5TablesJoinOverlapping(t *testing.T) {
 				"sid", "name", "age", "grade",
 			},
 		},
-
 	}
 	studentTablePartitionRules, _ = json.Marshal(m)
 
@@ -474,7 +491,6 @@ func TestLab2Additional5TablesJoinOverlapping(t *testing.T) {
 				"sid", "courseId",
 			},
 		},
-
 	}
 	courseRegistrationTablePartitionRules, _ = json.Marshal(m)
 
@@ -504,7 +520,6 @@ func TestLab2Additional5TablesJoinOverlapping(t *testing.T) {
 				"tid", "courseId",
 			},
 		},
-
 	}
 	teacherTablePartitionRules, _ = json.Marshal(m)
 
@@ -522,7 +537,6 @@ func TestLab2Additional5TablesJoinOverlapping(t *testing.T) {
 				"sid", "name", "age", "class",
 			},
 		},
-
 	}
 	studentClassTablePartitionRules, _ = json.Marshal(m)
 
@@ -658,7 +672,7 @@ func TestLab2NonOverlappingSemiJoin(t *testing.T) {
 
 	// perform a join and check the result
 	results := Dataset{}
-	cli.Call("Cluster.SemiJoin", []string{"sid",studentTableName, courseRegistrationTableName}, &results)
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
 
 	joinedTableContent = []Row{
 		{0, "John", 22, 4.0},
@@ -675,9 +689,6 @@ func TestLab2NonOverlappingSemiJoin(t *testing.T) {
 	if !compareDataset(expectedDataset, results) {
 		t.Errorf("Incorrect semi join results, expected %v, actual %v", expectedDataset, results)
 	}
-	fmt.Println("--------------------")
-	fmt.Println("SemiJoin Non overlap test passed")
-	fmt.Println("--------------------")
 }
 
 func TestLab2FullyOverlappingSemiJoin(t *testing.T) {
@@ -734,7 +745,7 @@ func TestLab2FullyOverlappingSemiJoin(t *testing.T) {
 
 	// perform a join and check the result
 	results := Dataset{}
-	cli.Call("Cluster.SemiJoin", []string{"sid",studentTableName, courseRegistrationTableName}, &results)
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
 
 	joinedTableContent = []Row{
 		{0, "John", 22, 4.0},
@@ -771,7 +782,6 @@ func TestLab2FullyCentralizedSemiJoin(t *testing.T) {
 				"sid", "name", "age", "grade",
 			},
 		},
-
 	}
 	studentTablePartitionRules, _ = json.Marshal(m)
 
@@ -797,7 +807,7 @@ func TestLab2FullyCentralizedSemiJoin(t *testing.T) {
 
 	// perform a join and check the result
 	results := Dataset{}
-	cli.Call("Cluster.SemiJoin", []string{"sid",studentTableName, courseRegistrationTableName}, &results)
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
 
 	joinedTableContent = []Row{
 		{0, "John", 22, 4.0},
@@ -883,7 +893,7 @@ func TestLab2PartiallyOverlappingSemiJoin(t *testing.T) {
 
 	// perform a join and check the result
 	results := Dataset{}
-	cli.Call("Cluster.SemiJoin", []string{"sid",studentTableName, courseRegistrationTableName}, &results)
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
 
 	joinedTableContent = []Row{
 		{0, "John", 22, 4.0},
@@ -903,7 +913,7 @@ func TestLab2PartiallyOverlappingSemiJoin(t *testing.T) {
 
 }
 
-func buildThreeTables(cli *labrpc.ClientEnd){
+func buildThreeTables(cli *labrpc.ClientEnd) {
 	//buildTables
 	replyMsg := ""
 	cli.Call("Cluster.BuildTable",
@@ -935,7 +945,7 @@ func insertThreeData(cli *labrpc.ClientEnd) {
 	}
 }
 
-func buildFiveTables(cli *labrpc.ClientEnd){
+func buildFiveTables(cli *labrpc.ClientEnd) {
 	//buildTables
 	replyMsg := ""
 	cli.Call("Cluster.BuildTable",

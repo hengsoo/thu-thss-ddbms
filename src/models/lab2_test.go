@@ -8,9 +8,6 @@ import (
 
 const studentTableName = "student"
 const courseRegistrationTableName = "courseRegistration"
-const teacherTableName = "teacher"
-const studentClassTableName = "studentClass"
-const teacherSchoolTableName = "teacherSchool"
 
 var c *Cluster
 var network *labrpc.Network
@@ -18,28 +15,15 @@ var cli *labrpc.ClientEnd
 
 var studentTableSchema *TableSchema
 var courseRegistrationTableSchema *TableSchema
-var teacherTableSchema *TableSchema
-var studentClassTableSchema *TableSchema
-var teacherSchoolTableSchema *TableSchema
 
 var studentRows []Row
 var courseRegistrationRows []Row
-var teacherRows []Row
-var studentClassRows []Row
-var teacherSchoolRows []Row
 
 var joinedTableSchema TableSchema
 var joinedTableContent []Row
-var joined3TableSchema TableSchema
-var joined3TableContent []Row
-var joined5TableSchema TableSchema
-var joined5TableContent []Row
 
 var studentTablePartitionRules []byte
 var courseRegistrationTablePartitionRules []byte
-var teacherTablePartitionRules []byte
-var studentClassTablePartitionRules []byte
-var teacherSchoolTablePartitionRules []byte
 
 func defineTables() {
 	studentTableSchema = &TableSchema{TableName: studentTableName, ColumnSchemas: []ColumnSchema{

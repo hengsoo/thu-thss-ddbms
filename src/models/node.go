@@ -13,6 +13,7 @@ type Node struct {
 	// tableName -> table
 	TableMap map[string]*Table
 }
+type ValueSet map[interface{}]bool
 
 // NewNode creates a new node with the given name and an empty set of tables
 func NewNode(id string) *Node {
@@ -135,6 +136,87 @@ func (n *Node) GetTableDataset(args interface{}, reply *Dataset) {
 	} else {
 		reply = nil
 	}
+}
+
+func (n *Node) TableHasColumn(args []string, reply *bool) {
+	// args[0] = table name
+	// args[1] = column name
+	tableName := args[0]
+	columnName := args[1]
+	tableSchema := n.TableMap[tableName].schema
+	if tableSchema.GetColIndexByName(columnName) == -1 {
+		*reply = false
+	} else {
+		*reply = true
+	}
+}
+
+func (n *Node) FilterTableWithColumnValues(args []interface{}, reply *Dataset) {
+	// args[0] = name of table to be filtered
+	// args[1] = column of table that should be filtered on
+	// args[2] = hashmap that stores possible column values on other table
+
+	tableName := args[0].(string)
+	filterColumnName := args[1].(string)
+	filterColumnIndex := int(n.TableMap[tableName].schema.GetColIndexByName(filterColumnName))
+	possibleJoinValueSet := args[2].(ValueSet)
+
+	// the table fragment in this node does not has the column
+	if filterColumnIndex == -1 {
+		reply = nil
+		return
+	}
+
+	// if table exists
+	if table, ok := n.TableMap[tableName]; ok {
+		reply.Schema = *table.schema
+		rowIterator, _ := n.IterateTable(tableName)
+
+		// get all rows one by one
+		for rowIterator.HasNext() {
+			// iterator is incremented here
+			row := *rowIterator.Next()
+
+			// only add row to reply dataset if the column value exists on other table
+			if possibleJoinValueSet[row[filterColumnIndex]] == true {
+				reply.Rows = append(reply.Rows, row)
+			}
+		}
+
+	} else {
+		reply = nil
+	}
+
+}
+
+func (n *Node) FilterTableWithPKs(args []interface{}, reply *Dataset) {
+	// args[0] = tableName
+	// args[1...n] list of PKs
+	tableName := args[0].(string)
+	primaryKeys := args[1:]
+
+	// if table exists
+	if table, ok := n.TableMap[tableName]; ok {
+		reply.Schema = *table.schema
+		rowIterator, _ := n.IterateTable(tableName)
+
+		// get all rows one by one
+		for rowIterator.HasNext() {
+			// iterator is incremented here
+			row := *rowIterator.Next()
+			for _, pk := range primaryKeys {
+				// filter row by allowed primary key list
+				// assume first item of each row is primary key
+				if row[0] == pk {
+					reply.Rows = append(reply.Rows, row)
+				}
+			}
+		}
+
+	} else {
+		reply = nil
+	}
+
 }
 
 // IterateTable returns the count of rows in a table. It returns (cnt, nil) if the Table can be found, or (-1, err)

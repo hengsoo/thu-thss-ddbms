@@ -46,6 +46,7 @@ type Cluster struct {
 func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Cluster {
 	labgob.Register(TableSchema{})
 	labgob.Register(Row{})
+	labgob.Register(ValueSet{})
 
 	tableRulesMap := make(map[string]map[string]Rule)
 	tableSchemasMap := make(map[string]TableSchema)
@@ -275,7 +276,7 @@ func (c *Cluster) NaturalJoinDatasets(datasetPtrs []*Dataset) (Dataset, error) {
 		// If a dataset has no join result, clear result's rows and short-circuit
 		if !hasJoinResult {
 			result.Rows = nil
-			fmt.Println("Natural Join(s) has(have) no matching results.")
+			//fmt.Println("Natural Join(s) has(have) no matching results.")
 			return result, nil
 		}
 	}
@@ -311,63 +312,160 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 // Semi Join first TWO* tables in the given list using provided column name
 // Set reply as a Dataset of the joined results.
 func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
-
 	// the column name to join the two tables on
 	var onJoinColName = params[0]
+	var table1Name = params[1]
+	var table2Name = params[2]
 
-	datasetPtrs := make([]*Dataset, len(params) - 1)
-
-	var err error
-
-	// get full dataset for each table name
-	for i, tableName := range params {
-		// first item should be column name to join on, skip
-		if i == 0 {
-			continue
-		}
-		// initialize dataset pointer
-		datasetPtrs[i-1] = &Dataset{}
-
-		// get full dataset and store it into list of pointer, -1 for the offset of provided column name
-		err = c.GetFullTableDataset(tableName, datasetPtrs[i-1])
-		if err != nil {
-			reply = nil
-			fmt.Println(err.Error())
-			return
-		}
-	}
-	dataset1 := datasetPtrs[0]
-	dataset2 := datasetPtrs[1]
+	table1Schema := c.TableSchemasMap[table1Name]
+	table2Schema := c.TableSchemasMap[table2Name]
 
 	// short circuit and return if both tables doesn't have the column to join on
-	if dataset1.Schema.GetColIndexByName(onJoinColName) == -1 || dataset2.Schema.GetColIndexByName(onJoinColName) == -1 {
+	if table1Schema.GetColIndexByName(onJoinColName) == -1 || table2Schema.GetColIndexByName(onJoinColName) == -1 {
 		reply = nil
 		fmt.Println("Column to join doesn't exist in both table")
 		return
 	}
 
-	// index of column to be joined on, in table 2, call it source table
-	srcColIndex := int(dataset2.Schema.GetColIndexByName(onJoinColName))
+	// get full dataset for table2 (filter table)
+	var dataset2 = Dataset{}
+	var err error
+	err = c.GetFullTableDataset(table2Name, &dataset2)
+	if err != nil {
+		reply = nil
+		fmt.Println(err.Error())
+		return
+	}
+
+	// index of column to be joined on, in table 2
+	srcColIndex := int(table2Schema.GetColIndexByName(onJoinColName))
 
 	// a hashmap storing the possible values in the on-join column in table 2
-	rowItemExistsMap := make(map[interface{}]bool)
+	possibleJoinValueSet := make(ValueSet)
 
 	// set the value to true indicating it exists
 	for _, row := range dataset2.Rows {
-		rowItemExistsMap[row[srcColIndex]] = true
+		possibleJoinValueSet[row[srcColIndex]] = true
 	}
 
-	*reply = Dataset{}
-	reply.Schema = dataset1.Schema
+	var noJoinColumnNodeRuleMap map[string]Rule
 
-	// index of column to be joined on, in table 1, the table with the schema to be returned
-	tgtColIndex := int(dataset1.Schema.GetColIndexByName(onJoinColName))
+	var filterConfig []interface{} = make([]interface{}, 3)
+	filterConfig[0] = table1Name
+	filterConfig[1] = onJoinColName
+	filterConfig[2] = possibleJoinValueSet
 
-	// only add the rows that have existing counterpart in on join column in table 2
-	for _, row := range dataset1.Rows {
-		if rowItemExistsMap[row[tgtColIndex]] {
-			reply.Rows = append(reply.Rows, row)
+	// filtered & restructured table1
+	var pkRowMap = make(map[interface{}]Row)
+	endNamePrefix := "InternalClient"
+
+	// Foreach rule of table
+	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+	for nodeIdxStr, rule := range c.TableRulesMap[table1Name] {
+		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+		nodeId := c.nodeIds[nodeIdx]
+		endName := endNamePrefix + nodeId
+		end := c.network.MakeEnd(endName)
+		// connect the client to the node
+		c.network.Connect(endName, nodeId)
+		// a client should be enabled before being used
+		c.network.Enable(endName, true)
+
+		// check if the on join column exists on the table living on this node
+		var tableOnThisNodeHasOnJoinColumn bool
+		var queryConfig []string = make([]string, 2)
+		queryConfig[0] = table1Name
+		queryConfig[1] = onJoinColName
+
+		var nodeDataset = Dataset{}
+
+		end.Call("Node.TableHasColumn", queryConfig, &tableOnThisNodeHasOnJoinColumn)
+
+		if tableOnThisNodeHasOnJoinColumn == true {
+
+			end.Call("Node.FilterTableWithColumnValues", filterConfig, &nodeDataset)
+
+			// the respective indices of fragmented column schemas in the complete list of column schemas
+			var insertColIdxs []int
+
+			for _, insertColName := range rule.Column {
+				insertColIdxs = append(insertColIdxs, table1Schema.GetColIndexByName(insertColName))
+			}
+
+			fullTableColumnsLen := len(table1Schema.ColumnSchemas)
+
+			// Insert/Merge rows
+			for _, nodeRow := range nodeDataset.Rows {
+
+				var primaryKey interface{} = nodeRow[0]
+
+				// If the nodeRow schema is complete, just insert it to the result
+				if len(nodeRow) == fullTableColumnsLen {
+					pkRowMap[primaryKey] = nodeRow
+				} else {
+					// If PK doesn't exist, create new Row
+					if _, ok := pkRowMap[primaryKey]; !ok {
+						pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
+					}
+					// Insert data into rows
+					for nodeColIdx, insertColIdx := range insertColIdxs {
+						pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
+					}
+				}
+			}
+		} else {
+			// save the rule (for .Column) and nodeIdxStr for next loop
+			noJoinColumnNodeRuleMap[nodeIdxStr] = rule
 		}
+	}
+
+	// config to filter fragmented tables that does not have the column to do the semi join
+	// filterConfig[0] = table name
+	// filterConfig[1...n] = list of primary keys we use to filter rows we need
+
+	filterByPKArgs := make([]interface{}, len(pkRowMap)+1)
+	filterByPKArgs[0] = table1Name
+
+	for pk := range pkRowMap {
+		filterByPKArgs = append(filterByPKArgs, pk)
+	}
+
+	for nodeIdxStr, rule := range noJoinColumnNodeRuleMap {
+		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+		nodeId := c.nodeIds[nodeIdx]
+		endName := endNamePrefix + nodeId
+		end := c.network.MakeEnd(endName)
+		// connect the client to the node
+		c.network.Connect(endName, nodeId)
+		// a client should be enabled before being used
+		c.network.Enable(endName, true)
+
+		// the respective indices of fragmented column schemas in the complete list of column schemas
+		var insertColIdxs []int
+		for _, insertColName := range rule.Column {
+			insertColIdxs = append(insertColIdxs, table1Schema.GetColIndexByName(insertColName))
+		}
+
+		var nodeDataset = Dataset{}
+		end.Call("Node.FilterTableWithPKs", filterByPKArgs, &nodeDataset)
+
+		// Insert/Merge rows
+		for _, nodeRow := range nodeDataset.Rows {
+
+			var primaryKey interface{} = nodeRow[0]
+			for nodeColIdx, insertColIdx := range insertColIdxs {
+				pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
+			}
+		}
+	}
+
+	// initialize returned dataset
+	*reply = Dataset{}
+	reply.Schema = table1Schema
+
+	// Add rows to result
+	for _, row := range pkRowMap {
+		reply.Rows = append(reply.Rows, row)
 	}
 }
 
