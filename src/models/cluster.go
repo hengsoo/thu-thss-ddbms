@@ -350,13 +350,15 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 	var noJoinColumnNodeRuleMap map[string]Rule
 
-	var filterConfig []interface{} = make([]interface{}, 3)
-	filterConfig[0] = table1Name
-	filterConfig[1] = onJoinColName
-	filterConfig[2] = possibleJoinValueSet
+	// arguments to filter rows in table1
+	var filterArgs []interface{} = make([]interface{}, 3)
+	filterArgs[0] = table1Name
+	filterArgs[1] = onJoinColName
+	filterArgs[2] = possibleJoinValueSet
 
 	// filtered & restructured table1
 	var pkRowMap = make(map[interface{}]Row)
+
 	endNamePrefix := "InternalClient"
 
 	// Foreach rule of table
@@ -371,19 +373,19 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		// a client should be enabled before being used
 		c.network.Enable(endName, true)
 
-		// check if the on join column exists on the table living on this node
-		var tableOnThisNodeHasOnJoinColumn bool
-		var queryConfig []string = make([]string, 2)
-		queryConfig[0] = table1Name
-		queryConfig[1] = onJoinColName
+		// arguments to check if the on join column exists on the table living on this node
+		var tableHasOnJoinColumn bool
+		var checkJoinColumnExistsArgs []string = make([]string, 2)
+		checkJoinColumnExistsArgs[0] = table1Name
+		checkJoinColumnExistsArgs[1] = onJoinColName
 
 		var nodeDataset = Dataset{}
 
-		end.Call("Node.TableHasColumn", queryConfig, &tableOnThisNodeHasOnJoinColumn)
+		end.Call("Node.TableHasColumn", checkJoinColumnExistsArgs, &tableHasOnJoinColumn)
 
-		if tableOnThisNodeHasOnJoinColumn == true {
+		if tableHasOnJoinColumn == true {
 
-			end.Call("Node.FilterTableWithColumnValues", filterConfig, &nodeDataset)
+			end.Call("Node.FilterTableWithColumnValues", filterArgs, &nodeDataset)
 
 			// the respective indices of fragmented column schemas in the complete list of column schemas
 			var insertColIdxs []int
@@ -419,10 +421,9 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		}
 	}
 
-	// config to filter fragmented tables that does not have the column to do the semi join
-	// filterConfig[0] = table name
-	// filterConfig[1...n] = list of primary keys we use to filter rows we need
-
+	// args to filter fragmented tables that does not have the column to do the semi join
+	// filterByPKArgs[0] = table name
+	// filterByPKArgs[1...n] = list of primary keys we use to filter rows we need
 	filterByPKArgs := make([]interface{}, len(pkRowMap)+1)
 	filterByPKArgs[0] = table1Name
 
