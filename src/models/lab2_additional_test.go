@@ -913,6 +913,173 @@ func TestLab2PartiallyOverlappingSemiJoin(t *testing.T) {
 
 }
 
+// courseRegistration table is empty in this test
+func TestLab2EmptyTableSemiJoin(t *testing.T) {
+	semiJoinSetup()
+
+	courseRegistrationRows = []Row{}
+	joinedTableContent = []Row{}
+
+	// use the client to create table and insert
+	// divide student table into two partitions and assign them to node0 and node1
+	m := map[string]interface{}{
+		"0": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "name", "age", "grade",
+			},
+		},
+		"1": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  ">",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "name", "age", "grade",
+			},
+		},
+	}
+	studentTablePartitionRules, _ = json.Marshal(m)
+
+	// assign course registration to node1 and node2
+	m = map[string]interface{}{
+		"1": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"courseId": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 1,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "courseId",
+			},
+		},
+		"2": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"courseId": [...]map[string]interface{}{{
+					"op":  ">",
+					"val": 1,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "courseId",
+			},
+		},
+	}
+	courseRegistrationTablePartitionRules, _ = json.Marshal(m)
+
+	buildTables(cli)
+	insertData(cli)
+
+	// perform a join and check the result
+	results := Dataset{}
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
+	expectedDataset := Dataset{
+		Schema: *studentTableSchema,
+		Rows:   joinedTableContent,
+	}
+	if !compareDataset(expectedDataset, results) {
+		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset, results)
+	}
+}
+
+// there is no matching tuple in this test
+func TestLab2NoMatchingSemiJoin(t *testing.T) {
+	semiJoinSetup()
+
+	courseRegistrationRows = []Row{
+		{10, 0},
+		{10, 1},
+		{11, 0},
+		{12, 2},
+	}
+	joinedTableContent = []Row{}
+
+	// use the client to create table and insert
+	// divide student table into two partitions and assign them to node0 and node1
+	m := map[string]interface{}{
+		"0": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "name", "age", "grade",
+			},
+		},
+		"1": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  ">",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "name", "age", "grade",
+			},
+		},
+	}
+	studentTablePartitionRules, _ = json.Marshal(m)
+
+	// assign course registration to node1 and node2
+	m = map[string]interface{}{
+		"1": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"courseId": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 1,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "courseId",
+			},
+		},
+		"2": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"courseId": [...]map[string]interface{}{{
+					"op":  ">",
+					"val": 1,
+				},
+				},
+			},
+			"column": [...]string{
+				"sid", "courseId",
+			},
+		},
+	}
+	courseRegistrationTablePartitionRules, _ = json.Marshal(m)
+
+	buildTables(cli)
+	insertData(cli)
+
+	// perform a join and check the result
+	results := Dataset{}
+	cli.Call("Cluster.SemiJoin", []string{"sid", studentTableName, courseRegistrationTableName}, &results)
+	expectedDataset := Dataset{
+		Schema: *studentTableSchema,
+		Rows:   joinedTableContent,
+	}
+	if !compareDataset(expectedDataset, results) {
+		t.Errorf("Incorrect join results, expected %v, actual %v", expectedDataset, results)
+	}
+}
+
 func buildThreeTables(cli *labrpc.ClientEnd) {
 	//buildTables
 	replyMsg := ""
