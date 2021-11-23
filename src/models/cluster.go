@@ -125,12 +125,11 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// Map of primary key to its row
 		// The first column in each node' tableSchema is assumed to be the PK.
 		pkRowMap := make(map[interface{}]Row)
-		fullTableColumnsLen := len(result.Schema.ColumnSchemas)
 
 		// Iterate node by relevant rule
 		// Get partial row data from each node
 		endNamePrefix := "InternalClient"
-		for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
+		for nodeIdxStr := range c.TableRulesMap[tableName] {
 
 			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
 			nodeId := c.nodeIds[nodeIdx]
@@ -141,35 +140,10 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 			// a client should be enabled before being used
 			c.network.Enable(endName, true)
 
-			var insertColIdxs []int
-			for _, insertColName := range rule.Column {
-				insertColIdxs = append(insertColIdxs, result.Schema.GetColIndexByName(insertColName))
-			}
-
 			var nodeTableDataset Dataset
 			end.Call("Node.GetTableDataset", tableName, &nodeTableDataset)
 
-			// Insert/Merge rows
-			for _, nodeRow := range nodeTableDataset.Rows {
-
-				// If the nodeRow schema is complete, just insert it to the result
-				// !! Duplication is not handled here !!
-				if len(nodeRow) == fullTableColumnsLen {
-					result.Rows = append(result.Rows, nodeRow)
-				} else {
-					// Else nodeRow schema is partial, merge it to pkRowMap
-					var primaryKey interface{} = nodeRow[0]
-					// If PK doesn't exist, create new Row
-					if _, ok := pkRowMap[primaryKey]; !ok {
-						pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
-					}
-					// Insert data into rows
-					for nodeColIdx, insertColIdx := range insertColIdxs {
-						pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
-					}
-				}
-
-			}
+			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema, true, result)
 
 		}
 
@@ -309,7 +283,7 @@ func (c *Cluster) Join(tableNames []string, reply *Dataset) {
 	}
 }
 
-// Semi Join first TWO* tables in the given list using provided column name
+// SemiJoin Semi Join first TWO* tables in the given list using provided column name
 // Set reply as a Dataset of the joined results.
 func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 	// the column name to join the two tables on
@@ -386,35 +360,8 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		if tableHasOnJoinColumn == true {
 
 			end.Call("Node.FilterTableWithColumnValues", filterArgs, &nodeDataset)
+			nodeDataset.ReconstructTable(pkRowMap, table1Schema, false, nil)
 
-			// the respective indices of fragmented column schemas in the complete list of column schemas
-			var insertColIdxs []int
-
-			for _, insertColName := range rule.Column {
-				insertColIdxs = append(insertColIdxs, table1Schema.GetColIndexByName(insertColName))
-			}
-
-			fullTableColumnsLen := len(table1Schema.ColumnSchemas)
-
-			// Insert/Merge rows
-			for _, nodeRow := range nodeDataset.Rows {
-
-				var primaryKey interface{} = nodeRow[0]
-
-				// If the nodeRow schema is complete, just insert it to the result
-				if len(nodeRow) == fullTableColumnsLen {
-					pkRowMap[primaryKey] = nodeRow
-				} else {
-					// If PK doesn't exist, create new Row
-					if _, ok := pkRowMap[primaryKey]; !ok {
-						pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
-					}
-					// Insert data into rows
-					for nodeColIdx, insertColIdx := range insertColIdxs {
-						pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
-					}
-				}
-			}
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
 			noJoinColumnNodeRuleMap[nodeIdxStr] = rule
