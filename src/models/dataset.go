@@ -27,12 +27,21 @@ func (dataset *Dataset) ReconstructTable(
 	for _, nodeRow := range dataset.Rows {
 
 		var primaryKey interface{} = nodeRow[0]
+		var isDuplicate bool = false
 
 		// If the nodeRow schema is complete, just insert it to the result
 		if len(nodeRow) == fullTableColumnsLen {
 			// directly append to result if allows duplicate, pkRowMap results will be appended to result.Rows in caller
 			if allowDuplicate {
-				result.Rows = append(result.Rows, nodeRow)
+				for _, resultRow := range result.Rows {
+					if nodeRow.Equals(&resultRow) {
+						isDuplicate = true
+					}
+				}
+				if !isDuplicate {
+					result.Rows = append(result.Rows, nodeRow)
+				}
+
 			} else {
 				pkRowMap[primaryKey] = nodeRow
 			}

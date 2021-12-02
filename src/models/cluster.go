@@ -131,7 +131,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		endNamePrefix := "InternalClient"
 		for nodeIdxStr := range c.TableRulesMap[tableName] {
 
-			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+			nodeIdx := nodeIdxStr[0] - '0'
 			nodeId := c.nodeIds[nodeIdx]
 			endName := endNamePrefix + nodeId
 			end := c.network.MakeEnd(endName)
