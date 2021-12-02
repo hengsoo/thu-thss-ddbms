@@ -71,7 +71,9 @@ func (n *Node) FragmentWrite(params []interface{}, reply *string) {
 		*reply = fmt.Sprintf("Insertion Error")
 	}
 
-	*reply = fmt.Sprintf("Successfully insert row %s into Table %s\n", row, tableName)
+	*reply = fmt.Sprintf("Successfully insert row %s into Table %s for Node %s", row, tableName, n.Identifier)
+	//*reply = fmt.Sprintf("Successfully insert row  into Table %s\n for Node %s", tableName, n.Identifier)
+	//*reply = fmt.Sprintf("Successfully insert row")
 }
 
 // CreateTable creates a Table on this node with the provided schema. It returns nil if the table is created

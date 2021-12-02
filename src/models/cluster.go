@@ -444,29 +444,37 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		// Foreach rule of table
 		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
 		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
-			nodeIdx, _ := strconv.Atoi(nodeIdxStr)
-			nodeId := c.nodeIds[nodeIdx]
-			endName := endNamePrefix + nodeId
-			end := c.network.MakeEnd(endName)
-			// connect the client to the node
-			c.network.Connect(endName, nodeId)
-			// a client should be enabled before being used
-			c.network.Enable(endName, true)
-
-			var colSchemas = make([]ColumnSchema, len(rule.Column))
-
-			// create column schemas from rules
-			for colIdx, colName := range rule.Column {
-				colSchemas[colIdx] = ColumnSchema{Name: colName, DataType: schema.GetColTypeByName(colName)}
+			//fmt.Println(nodeIdxStr)
+			nodeIdx := make([]int, 0)
+			for i := 0; i < len(nodeIdxStr); i++ {
+				if nodeIdxStr[i] != '|' {
+					nodeIdx = append(nodeIdx, int(nodeIdxStr[i]-'0'))
+				}
 			}
+			for _, idx := range nodeIdx {
+				nodeId := c.nodeIds[idx]
+				endName := endNamePrefix + nodeId
+				end := c.network.MakeEnd(endName)
+				// connect the client to the node
+				c.network.Connect(endName, nodeId)
+				// a client should be enabled before being used
+				c.network.Enable(endName, true)
 
-			// create table schema with name specific to node they live on
-			argument := TableSchema{TableName: schema.TableName, ColumnSchemas: colSchemas}
-			reply := ""
+				var colSchemas = make([]ColumnSchema, len(rule.Column))
 
-			// ampersand (&) to pass as reference. Needed by Node.CreateTable
-			end.Call("Node.BuildTable", &argument, &reply)
-			//fmt.Println(reply)
+				// create column schemas from rules
+				for colIdx, colName := range rule.Column {
+					colSchemas[colIdx] = ColumnSchema{Name: colName, DataType: schema.GetColTypeByName(colName)}
+				}
+
+				// create table schema with name specific to node they live on
+				argument := TableSchema{TableName: schema.TableName, ColumnSchemas: colSchemas}
+				reply := ""
+
+				// ampersand (&) to pass as reference. Needed by Node.CreateTable
+				end.Call("Node.BuildTable", &argument, &reply)
+				//fmt.Println(reply)
+			}
 		}
 	}
 
@@ -498,22 +506,29 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 		if isAllPredicatesSatisfied == false {
 			continue
 		}
-
-		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
-		nodeId := c.nodeIds[nodeIdx]
-		endName := endNamePrefix + nodeId
-		end := c.network.MakeEnd(endName)
-		// connect the client to the node
-		c.network.Connect(endName, nodeId)
-		// a client should be enabled before being used
-		c.network.Enable(endName, true)
-
-		var newRow Row
-		for _, colName := range rule.Column {
-			newRow = append(newRow, row[schema.GetColIndexByName(colName)])
+		//fmt.Println(nodeIdxStr)
+		nodeIdx := make([]int, 0)
+		for i := 0; i < len(nodeIdxStr); i++ {
+			if nodeIdxStr[i] != '|' {
+				nodeIdx = append(nodeIdx, int(nodeIdxStr[i]-'0'))
+			}
 		}
+		for _, idx := range nodeIdx {
+			nodeId := c.nodeIds[idx]
+			endName := endNamePrefix + nodeId
+			end := c.network.MakeEnd(endName)
+			// connect the client to the node
+			c.network.Connect(endName, nodeId)
+			// a client should be enabled before being used
+			c.network.Enable(endName, true)
 
-		end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
-		//fmt.Println(reply)
+			var newRow Row
+			for _, colName := range rule.Column {
+				newRow = append(newRow, row[schema.GetColIndexByName(colName)])
+			}
+			reply := ""
+			end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
+			//fmt.Println(reply)
+		}
 	}
 }
