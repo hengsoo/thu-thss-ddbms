@@ -30,6 +30,8 @@ type Cluster struct {
 	TableRulesMap map[string]map[string]Rule
 	// TableSchemasMap[tableName] -> TableSchema
 	TableSchemasMap map[string]TableSchema
+	// TableRowCountMap[tableName] -> Table's row count
+	TableRowCountMap map[string]int
 }
 
 // NewCluster creates a Cluster with the given number of nodes and register the nodes to the given network.
@@ -50,6 +52,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 
 	tableRulesMap := make(map[string]map[string]Rule)
 	tableSchemasMap := make(map[string]TableSchema)
+	tableRowCountMap := make(map[string]int)
 
 	nodeIds := make([]string, nodeNum)
 	nodeNamePrefix := "Node"
@@ -73,7 +76,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 
 	// create a cluster with the nodes and the network
 	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName,
-		TableRulesMap: tableRulesMap, TableSchemasMap: tableSchemasMap}
+		TableRulesMap: tableRulesMap, TableSchemasMap: tableSchemasMap, TableRowCountMap: tableRowCountMap}
 	// create a coordinator for the cluster to receive external requests, the steps are similar to those above.
 	// notice that we use the reference of the cluster as the name of the coordinator server,
 	// and the names can be more than strings.
@@ -117,13 +120,13 @@ func (c *Cluster) SayHello(visitor string, reply *string) {
 // The join is based on primary key of each table. The first column in each nodes' tableSchema is assumed to be the PK.
 func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 	// Get table schema
-	// Check if the table already exists
+	// Check if the table exists
 	if _, ok := c.TableSchemasMap[tableName]; ok {
 		*result = Dataset{}
 		result.Schema = c.TableSchemasMap[tableName]
 
 		// Map of primary key to its row
-		// The first column in each node' tableSchema is assumed to be the PK.
+		// The first column in each row (un-partitioned table row index) is assumed to be the PK.
 		pkRowMap := make(map[interface{}]Row)
 
 		// Iterate node by relevant rule
@@ -143,8 +146,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 			var nodeTableDataset Dataset
 			end.Call("Node.GetTableDataset", tableName, &nodeTableDataset)
 
-			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema, true, result)
-
+			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema)
 		}
 
 		// Add rows to result
@@ -360,7 +362,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		if tableHasOnJoinColumn == true {
 
 			end.Call("Node.FilterTableWithColumnValues", filterArgs, &nodeDataset)
-			nodeDataset.ReconstructTable(pkRowMap, table1Schema, false, nil)
+			nodeDataset.ReconstructTable(pkRowMap, table1Schema)
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
@@ -433,7 +435,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		var rulesMap map[string]Rule
 		_ = json.Unmarshal(params[1].([]byte), &rulesMap)
 		c.TableRulesMap[schema.TableName] = rulesMap
-
+		c.TableRowCountMap[schema.TableName] = 0
 		// Example usage of rules
 		// fmt.Println("Rules")
 		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Op)
@@ -480,6 +482,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 }
 
+// First column of stored row will be the row idx of its un-partitioned table.
 func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	//tableName := params[0]
 	//row := params[1]
@@ -487,6 +490,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 	tableName := params[0].(string)
 	// Un-partitioned row (follows cluster's table schema)
 	row := params[1].(Row)
+	rowIdx := c.TableRowCountMap[tableName]
 	schema := c.TableSchemasMap[tableName]
 
 	endNamePrefix := "InternalClient"
@@ -522,7 +526,8 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 			// a client should be enabled before being used
 			c.network.Enable(endName, true)
 
-			var newRow Row
+			newRow := make(Row, 1)
+			newRow[0] = rowIdx
 			for _, colName := range rule.Column {
 				newRow = append(newRow, row[schema.GetColIndexByName(colName)])
 			}
@@ -531,4 +536,7 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 			//fmt.Println(reply)
 		}
 	}
+
+	// Increment row count of table
+	c.TableRowCountMap[tableName] += 1
 }

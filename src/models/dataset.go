@@ -5,13 +5,10 @@ type Dataset struct {
 	Rows   []Row
 }
 
-// ReconstructTable Reconstruct with dataset and the complete table schema and save to pk-row map
-// if allowDuplicate is true, a complete row in node dataset is directly appended to result dataset
+// ReconstructTable reconstruct dataset with fullTableSchema and save to _pkRowMap
 func (dataset *Dataset) ReconstructTable(
-	pkRowMap map[interface{}]Row,
-	fullTableSchema TableSchema,
-	allowDuplicate bool,
-	result *Dataset) {
+	_pkRowMap map[interface{}]Row,
+	fullTableSchema TableSchema) {
 
 	// the respective indices of fragmented column schemas in the complete list of column schemas
 	var insertColIdxs []int
@@ -26,35 +23,17 @@ func (dataset *Dataset) ReconstructTable(
 	// Insert/Merge rows
 	for _, nodeRow := range dataset.Rows {
 
+		// Note: We assume the pk to be the node row idx of un-partitioned table
 		var primaryKey interface{} = nodeRow[0]
-		var isDuplicate bool = false
 
-		// If the nodeRow schema is complete, just insert it to the result
-		if len(nodeRow) == fullTableColumnsLen {
-			// directly append to result if allows duplicate, pkRowMap results will be appended to result.Rows in caller
-			if allowDuplicate {
-				for _, resultRow := range result.Rows {
-					if nodeRow.Equals(&resultRow) {
-						isDuplicate = true
-					}
-				}
-				if !isDuplicate {
-					result.Rows = append(result.Rows, nodeRow)
-				}
-
-			} else {
-				pkRowMap[primaryKey] = nodeRow
-			}
-
-		} else {
-			// If PK doesn't exist, create new Row
-			if _, ok := pkRowMap[primaryKey]; !ok {
-				pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
-			}
-			// Insert data into rows
-			for nodeColIdx, insertColIdx := range insertColIdxs {
-				pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
-			}
+		// If PK doesn't exist, create new Row
+		if _, ok := _pkRowMap[primaryKey]; !ok {
+			_pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
+		}
+		// Insert data into rows
+		for nodeColIdx, insertColIdx := range insertColIdxs {
+			// Note: Add one to skip the row idx in row ( row idx is hidden from schema )
+			_pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx+1]
 		}
 	}
 }

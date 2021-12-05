@@ -245,7 +245,8 @@ func (n *Node) ScanTable(tableName string, dataset *Dataset) {
 		i := 0
 		iterator := t.RowIterator()
 		for iterator.HasNext() {
-			tableRows[i] = *iterator.Next()
+			// Skip the un-partitioned table row idx of each row
+			tableRows[i] = (*iterator.Next())[1:]
 			i = i + 1
 		}
 
