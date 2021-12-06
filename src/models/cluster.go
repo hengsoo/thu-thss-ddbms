@@ -429,6 +429,14 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Val)
 		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Column)
 
+		// Set Rule Idx
+		ruleCount := 0
+		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
+			rule.RuleIdx = ruleCount
+			c.TableRulesMap[schema.TableName][nodeIdxStr] = rule
+			ruleCount++
+		}
+
 		endNamePrefix := "InternalClient"
 		// Foreach rule of table
 		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
