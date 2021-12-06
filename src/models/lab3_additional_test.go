@@ -21,7 +21,19 @@ func TestLab3AdditionalVerticalFragmentation(t *testing.T) {
 				},
 			},
 			"column": [...]string{
-				"sid", "name", "age", "grade",
+				"sid", "name",
+			},
+		},
+		"0|1|2": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"age", "grade",
 			},
 		},
 		"1|2": map[string]interface{}{
