@@ -448,13 +448,13 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
 		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
 			//fmt.Println(nodeIdxStr)
-			nodeIdx := make([]int, 0)
+			nodeIdxs := make([]int, 0)
 			for i := 0; i < len(nodeIdxStr); i++ {
 				if nodeIdxStr[i] != '|' {
-					nodeIdx = append(nodeIdx, int(nodeIdxStr[i]-'0'))
+					nodeIdxs = append(nodeIdxs, int(nodeIdxStr[i]-'0'))
 				}
 			}
-			for _, idx := range nodeIdx {
+			for _, idx := range nodeIdxs {
 				nodeId := c.nodeIds[idx]
 				endName := endNamePrefix + nodeId
 				end := c.network.MakeEnd(endName)
@@ -512,13 +512,13 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 			continue
 		}
 		//fmt.Println(nodeIdxStr)
-		nodeIdx := make([]int, 0)
+		nodeIdxs := make([]int, 0)
 		for i := 0; i < len(nodeIdxStr); i++ {
 			if nodeIdxStr[i] != '|' {
-				nodeIdx = append(nodeIdx, int(nodeIdxStr[i]-'0'))
+				nodeIdxs = append(nodeIdxs, int(nodeIdxStr[i]-'0'))
 			}
 		}
-		for _, idx := range nodeIdx {
+		for _, idx := range nodeIdxs {
 			nodeId := c.nodeIds[idx]
 			endName := endNamePrefix + nodeId
 			end := c.network.MakeEnd(endName)

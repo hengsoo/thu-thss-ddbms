@@ -124,6 +124,7 @@ func (n *Node) IterateTable(tableName string) (RowIterator, error) {
 	}
 }
 
+// Dataset row will include rowIdx primary key
 func (n *Node) GetTableDataset(args interface{}, reply *Dataset) {
 	tableName := args.(string)
 
