@@ -321,9 +321,6 @@ func TestLab2Additional5TablesJoin(t *testing.T) {
 	}
 }
 
-// TODO
-// Please add more relevant tests on Multiple Tables Join
-
 // Multiple Tables Join I NonOverlapping some table is held by same node
 func TestLab2Additional3TablesJoinOverlapping(t *testing.T) {
 	// TODO
@@ -618,7 +615,7 @@ func semiJoinSetup() {
 	defineSemiJoinTables()
 }
 
-func TestLab2NonOverlappingSemiJoin(t *testing.T) {
+func TestLab2AdditionalNonOverlappingSemiJoin(t *testing.T) {
 	semiJoinSetup()
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
@@ -691,7 +688,7 @@ func TestLab2NonOverlappingSemiJoin(t *testing.T) {
 	}
 }
 
-func TestLab2FullyOverlappingSemiJoin(t *testing.T) {
+func TestLab2AdditionalFullyOverlappingSemiJoin(t *testing.T) {
 	semiJoinSetup()
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
@@ -765,7 +762,7 @@ func TestLab2FullyOverlappingSemiJoin(t *testing.T) {
 
 }
 
-func TestLab2FullyCentralizedSemiJoin(t *testing.T) {
+func TestLab2AdditionalFullyCentralizedSemiJoin(t *testing.T) {
 	semiJoinSetup()
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
@@ -827,7 +824,7 @@ func TestLab2FullyCentralizedSemiJoin(t *testing.T) {
 
 }
 
-func TestLab2PartiallyOverlappingSemiJoin(t *testing.T) {
+func TestLab2AdditionalPartiallyOverlappingSemiJoin(t *testing.T) {
 	semiJoinSetup()
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
@@ -914,7 +911,7 @@ func TestLab2PartiallyOverlappingSemiJoin(t *testing.T) {
 }
 
 // courseRegistration table is empty in this test
-func TestLab2EmptyTableSemiJoin(t *testing.T) {
+func TestLab2AdditionalEmptyTableSemiJoin(t *testing.T) {
 	semiJoinSetup()
 
 	courseRegistrationRows = []Row{}
@@ -995,7 +992,7 @@ func TestLab2EmptyTableSemiJoin(t *testing.T) {
 }
 
 // there is no matching tuple in this test
-func TestLab2NoMatchingSemiJoin(t *testing.T) {
+func TestLab2AdditionalNoMatchingSemiJoin(t *testing.T) {
 	semiJoinSetup()
 
 	courseRegistrationRows = []Row{
@@ -1080,7 +1077,7 @@ func TestLab2NoMatchingSemiJoin(t *testing.T) {
 	}
 }
 
-func TestLab2MissingPrimaryKeySemiJoin(t *testing.T) {
+func TestLab2AdditionalMissingPrimaryKeySemiJoin(t *testing.T) {
 	semiJoinSetup()
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
