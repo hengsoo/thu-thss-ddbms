@@ -324,7 +324,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		possibleJoinValueSet[row[srcColIndex]] = true
 	}
 
-	var noJoinColumnNodeRuleMap = make(map[string]Rule)
+	var missingJoinColumnRows = make([]string, 0)
 
 	// arguments to filter rows in table1
 	var filterArgs []interface{} = make([]interface{}, 3)
@@ -339,7 +339,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 	// Foreach rule of table
 	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-	for nodeIdxStr, rule := range c.TableRulesMap[table1Name] {
+	for nodeIdxStr := range c.TableRulesMap[table1Name] {
 		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
@@ -366,7 +366,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
-			noJoinColumnNodeRuleMap[nodeIdxStr] = rule
+			missingJoinColumnRows = append(missingJoinColumnRows, nodeIdxStr)
 		}
 	}
 
@@ -380,7 +380,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		filterByPKArgs = append(filterByPKArgs, pk)
 	}
 
-	for nodeIdxStr, rule := range noJoinColumnNodeRuleMap {
+	for _, nodeIdxStr := range missingJoinColumnRows {
 		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
@@ -390,24 +390,10 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		// a client should be enabled before being used
 		c.network.Enable(endName, true)
 
-		// the respective indices of fragmented column schemas in the complete list of column schemas
-		var insertColIdxs []int
-		for _, insertColName := range rule.Column {
-			insertColIdxs = append(insertColIdxs, table1Schema.GetColIndexByName(insertColName))
-		}
-
 		var nodeDataset = Dataset{}
 		end.Call("Node.FilterTableWithPKs", filterByPKArgs, &nodeDataset)
+		nodeDataset.ReconstructTable(pkRowMap, table1Schema)
 
-		// Insert/Merge rows
-		for _, nodeRow := range nodeDataset.Rows {
-
-			var primaryKey interface{} = nodeRow[0]
-			for nodeColIdx, insertColIdx := range insertColIdxs {
-				// nodeRow index needs to +1 to skip primary key
-				pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx + 1]
-			}
-		}
 	}
 
 	// initialize returned dataset
