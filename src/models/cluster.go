@@ -324,7 +324,12 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		possibleJoinValueSet[row[srcColIndex]] = true
 	}
 
-	var missingJoinColumnRows = make([]string, 0)
+	type NodeRule struct {
+		rule Rule
+		nodeIndices string
+	}
+
+	var missingJoinColumnRules = make([]NodeRule, 0)
 
 	// arguments to filter rows in table1
 	var filterArgs []interface{} = make([]interface{}, 3)
@@ -368,7 +373,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
-			missingJoinColumnRows = append(missingJoinColumnRows, nodeIdxStr)
+			missingJoinColumnRules = append(missingJoinColumnRules, NodeRule{nodeIndices: nodeIdxStr, rule:rule})
 		}
 	}
 
@@ -376,14 +381,13 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 	// filterByPKArgs[0] = table name
 	// filterByPKArgs[1...n] = list of primary keys we use to filter rows we need
 	filterByPKArgs := make([]interface{}, len(pkRowMap)+1)
-	filterByPKArgs[0] = table1Name
 
 	for pk := range pkRowMap {
 		filterByPKArgs = append(filterByPKArgs, pk)
 	}
 
-	for _, nodeIdxStr := range missingJoinColumnRows {
-		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
+	for _, nodeRule := range missingJoinColumnRules {
+		nodeIdx, _ := strconv.Atoi(nodeRule.nodeIndices)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
 		end := c.network.MakeEnd(endName)
@@ -391,6 +395,8 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		c.network.Connect(endName, nodeId)
 		// a client should be enabled before being used
 		c.network.Enable(endName, true)
+
+		filterByPKArgs[0] = table1Name + "_R" + strconv.Itoa(nodeRule.rule.RuleIdx)
 
 		var nodeDataset = Dataset{}
 		end.Call("Node.FilterTableWithPKs", filterByPKArgs, &nodeDataset)
