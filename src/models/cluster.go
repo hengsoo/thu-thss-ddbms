@@ -324,7 +324,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		possibleJoinValueSet[row[srcColIndex]] = true
 	}
 
-	var noJoinColumnNodeRuleMap map[string]Rule
+	var noJoinColumnNodeRuleMap = make(map[string]Rule)
 
 	// arguments to filter rows in table1
 	var filterArgs []interface{} = make([]interface{}, 3)
@@ -404,7 +404,8 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 			var primaryKey interface{} = nodeRow[0]
 			for nodeColIdx, insertColIdx := range insertColIdxs {
-				pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx]
+				// nodeRow index needs to +1 to skip primary key
+				pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx + 1]
 			}
 		}
 	}
