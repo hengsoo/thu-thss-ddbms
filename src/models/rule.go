@@ -11,3 +11,8 @@ type Condition struct {
 	Op  string
 	Val interface{}
 }
+
+type NodeRule struct {
+	Rule Rule
+	NodeIndices string
+}

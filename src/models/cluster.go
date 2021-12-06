@@ -26,8 +26,8 @@ type Cluster struct {
 	Name string
 
 	// Segmentation rules for tables
-	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-	TableRulesMap map[string]map[string]Rule
+	// TableNodeRulesMap[tableName] -> [NodeRule1, NodeRule2, ...]
+	TableNodeRulesMap map[string][]NodeRule
 	// TableSchemasMap[tableName] -> TableSchema
 	TableSchemasMap map[string]TableSchema
 	// TableRowCountMap[tableName] -> Table's row count
@@ -50,7 +50,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 	labgob.Register(Row{})
 	labgob.Register(ValueSet{})
 
-	tableRulesMap := make(map[string]map[string]Rule)
+	tableNodeRulesMap := make(map[string][]NodeRule)
 	tableSchemasMap := make(map[string]TableSchema)
 	tableRowCountMap := make(map[string]int)
 
@@ -76,7 +76,7 @@ func NewCluster(nodeNum int, network *labrpc.Network, clusterName string) *Clust
 
 	// create a cluster with the nodes and the network
 	c := &Cluster{nodeIds: nodeIds, network: network, Name: clusterName,
-		TableRulesMap: tableRulesMap, TableSchemasMap: tableSchemasMap, TableRowCountMap: tableRowCountMap}
+		TableNodeRulesMap: tableNodeRulesMap, TableSchemasMap: tableSchemasMap, TableRowCountMap: tableRowCountMap}
 	// create a coordinator for the cluster to receive external requests, the steps are similar to those above.
 	// notice that we use the reference of the cluster as the name of the coordinator server,
 	// and the names can be more than strings.
@@ -132,8 +132,9 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// Iterate node by relevant rule
 		// Get partial row data from each node
 		endNamePrefix := "InternalClient"
-		for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
-
+		for _, nodeRule := range c.TableNodeRulesMap[tableName] {
+			nodeIdxStr := nodeRule.NodeIndices
+			rule := nodeRule.Rule
 			nodeIdx := nodeIdxStr[0] - '0'
 			nodeId := c.nodeIds[nodeIdx]
 			endName := endNamePrefix + nodeId
@@ -324,11 +325,6 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		possibleJoinValueSet[row[srcColIndex]] = true
 	}
 
-	type NodeRule struct {
-		rule Rule
-		nodeIndices string
-	}
-
 	var missingJoinColumnRules = make([]NodeRule, 0)
 
 	// arguments to filter rows in table1
@@ -343,8 +339,10 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 	endNamePrefix := "InternalClient"
 
 	// Foreach rule of table
-	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-	for nodeIdxStr, rule := range c.TableRulesMap[table1Name] {
+	// TableNodeRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+	for _, nodeRule := range c.TableNodeRulesMap[table1Name] {
+		nodeIdxStr := nodeRule.NodeIndices
+		rule := nodeRule.Rule
 		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
@@ -373,7 +371,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
-			missingJoinColumnRules = append(missingJoinColumnRules, NodeRule{nodeIndices: nodeIdxStr, rule:rule})
+			missingJoinColumnRules = append(missingJoinColumnRules, NodeRule{NodeIndices: nodeIdxStr, Rule:rule})
 		}
 	}
 
@@ -387,7 +385,9 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 	}
 
 	for _, nodeRule := range missingJoinColumnRules {
-		nodeIdx, _ := strconv.Atoi(nodeRule.nodeIndices)
+		nodeStrIdx := nodeRule.NodeIndices
+		rule := nodeRule.Rule
+		nodeIdx, _ := strconv.Atoi(nodeStrIdx)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
 		end := c.network.MakeEnd(endName)
@@ -396,7 +396,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		// a client should be enabled before being used
 		c.network.Enable(endName, true)
 
-		filterByPKArgs[0] = table1Name + "_R" + strconv.Itoa(nodeRule.rule.RuleIdx)
+		filterByPKArgs[0] = table1Name + "_R" + strconv.Itoa(rule.RuleIdx)
 
 		var nodeDataset = Dataset{}
 		end.Call("Node.FilterTableWithPKs", filterByPKArgs, &nodeDataset)
@@ -422,33 +422,41 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 	c.TableSchemasMap[schema.TableName] = schema
 
 	// Check if the table already exists
-	if _, ok := c.TableRulesMap[schema.TableName]; ok {
+	if _, ok := c.TableNodeRulesMap[schema.TableName]; ok {
 		reply = nil
 		_ = fmt.Sprintf("Table %s already exists in %s cluster", schema.TableName, c.Name)
 	} else {
 		// Parse rules from unstructured json to map
 		var rulesMap map[string]Rule
 		_ = json.Unmarshal(params[1].([]byte), &rulesMap)
-		c.TableRulesMap[schema.TableName] = rulesMap
-		c.TableRowCountMap[schema.TableName] = 0
-		// Example usage of rules
-		// fmt.Println("Rules")
-		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Op)
-		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Val)
-		// fmt.Println(c.TableRulesMap[schema.TableName]["0"].Column)
 
 		// Set Rule Idx
 		ruleCount := 0
-		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
+		for nodeIdxStr, rule := range rulesMap {
+
 			rule.RuleIdx = ruleCount
-			c.TableRulesMap[schema.TableName][nodeIdxStr] = rule
 			ruleCount++
+
+			c.TableNodeRulesMap[schema.TableName] = append(c.TableNodeRulesMap[schema.TableName],NodeRule{
+				Rule:rule,
+				NodeIndices: nodeIdxStr,
+			})
+
+
 		}
+		c.TableRowCountMap[schema.TableName] = 0
+		// Example usage of rules
+		// fmt.Println("Rules")
+		// fmt.Println(c.TableNodeRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Op)
+		// fmt.Println(c.TableNodeRulesMap[schema.TableName]["0"].Predicate["BUDGET"][0].Val)
+		// fmt.Println(c.TableNodeRulesMap[schema.TableName]["0"].Column)
 
 		endNamePrefix := "InternalClient"
 		// Foreach rule of table
-		// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-		for nodeIdxStr, rule := range c.TableRulesMap[schema.TableName] {
+		// TableNodeRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+		for _, nodeRule := range c.TableNodeRulesMap[schema.TableName] {
+			nodeIdxStr := nodeRule.NodeIndices
+			rule := nodeRule.Rule
 			//fmt.Println(nodeIdxStr)
 			nodeIdxs := make([]int, 0)
 			for i := 0; i < len(nodeIdxStr); i++ {
@@ -500,9 +508,10 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 
 	endNamePrefix := "InternalClient"
 	// Foreach rule of table
-	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-	for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
-
+	// TableNodeRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
+	for _, nodeRule := range c.TableNodeRulesMap[tableName] {
+		nodeIdxStr := nodeRule.NodeIndices
+		rule := nodeRule.Rule
 		isAllPredicatesSatisfied := true
 
 		for colName, colConditions := range rule.Predicate {
