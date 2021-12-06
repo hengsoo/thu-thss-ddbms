@@ -132,7 +132,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// Iterate node by relevant rule
 		// Get partial row data from each node
 		endNamePrefix := "InternalClient"
-		for nodeIdxStr := range c.TableRulesMap[tableName] {
+		for nodeIdxStr, rule := range c.TableRulesMap[tableName] {
 
 			nodeIdx := nodeIdxStr[0] - '0'
 			nodeId := c.nodeIds[nodeIdx]
@@ -144,7 +144,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 			c.network.Enable(endName, true)
 
 			var nodeTableDataset Dataset
-			end.Call("Node.GetTableDataset", tableName, &nodeTableDataset)
+			end.Call("Node.GetTableDataset", tableName + "_R" + strconv.Itoa(rule.RuleIdx), &nodeTableDataset)
 
 			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema)
 		}
@@ -328,7 +328,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 	// arguments to filter rows in table1
 	var filterArgs []interface{} = make([]interface{}, 3)
-	filterArgs[0] = table1Name
+	//filterArgs[0] = table1Name
 	filterArgs[1] = onJoinColName
 	filterArgs[2] = possibleJoinValueSet
 
@@ -339,7 +339,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 	// Foreach rule of table
 	// TableRulesMap[tableName][nodeIdxStr] -> Rule for node[nodeIdxStr]
-	for nodeIdxStr := range c.TableRulesMap[table1Name] {
+	for nodeIdxStr, rule := range c.TableRulesMap[table1Name] {
 		nodeIdx, _ := strconv.Atoi(nodeIdxStr)
 		nodeId := c.nodeIds[nodeIdx]
 		endName := endNamePrefix + nodeId
@@ -352,8 +352,10 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		// arguments to check if the on join column exists on the table living on this node
 		var tableHasOnJoinColumn bool
 		var checkJoinColumnExistsArgs []string = make([]string, 2)
-		checkJoinColumnExistsArgs[0] = table1Name
+		checkJoinColumnExistsArgs[0] = table1Name + "_R" + strconv.Itoa(rule.RuleIdx)
 		checkJoinColumnExistsArgs[1] = onJoinColName
+
+		filterArgs[0] = table1Name + "_R" + strconv.Itoa(rule.RuleIdx)
 
 		var nodeDataset = Dataset{}
 
@@ -465,7 +467,9 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 				}
 
 				// create table schema with name specific to node they live on
-				argument := TableSchema{TableName: schema.TableName, ColumnSchemas: colSchemas}
+				argument := TableSchema{
+					TableName: schema.TableName + "_R" + strconv.Itoa(rule.RuleIdx),
+					ColumnSchemas: colSchemas}
 				reply := ""
 
 				// ampersand (&) to pass as reference. Needed by Node.CreateTable
@@ -527,7 +531,8 @@ func (c *Cluster) FragmentWrite(params []interface{}, reply *string) {
 				newRow = append(newRow, row[schema.GetColIndexByName(colName)])
 			}
 			reply := ""
-			end.Call("Node.FragmentWrite", []interface{}{tableName, newRow}, &reply)
+			end.Call("Node.FragmentWrite",
+				[]interface{}{tableName + "_R" + strconv.Itoa(rule.RuleIdx), newRow}, &reply)
 			//fmt.Println(reply)
 		}
 	}
