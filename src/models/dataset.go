@@ -8,7 +8,7 @@ type Dataset struct {
 // ReconstructTable reconstruct dataset with fullTableSchema and save to _pkRowMap
 func (dataset *Dataset) ReconstructTable(
 	_pkRowMap map[interface{}]Row,
-	fullTableSchema TableSchema) {
+	fullTableSchema TableSchema, skipRowIdx bool) {
 
 	// the respective indices of fragmented column schemas in the complete list of column schemas
 	var insertColIdxs []int
@@ -19,6 +19,9 @@ func (dataset *Dataset) ReconstructTable(
 	}
 
 	fullTableColumnsLen := len(fullTableSchema.ColumnSchemas)
+	if !skipRowIdx {
+		fullTableColumnsLen += 1
+	}
 
 	// Insert/Merge rows
 	for _, nodeRow := range dataset.Rows {
@@ -29,10 +32,16 @@ func (dataset *Dataset) ReconstructTable(
 		// If PK doesn't exist, create new Row
 		if _, ok := _pkRowMap[primaryKey]; !ok {
 			_pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
+			if !skipRowIdx {
+				_pkRowMap[primaryKey][0] = primaryKey
+			}
 		}
 		// Insert data into rows
 		for nodeColIdx, insertColIdx := range insertColIdxs {
 			// Note: Add one to skip the row idx in row ( row idx is hidden from schema )
+			if !skipRowIdx {
+				insertColIdx += 1
+			}
 			_pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx+1]
 		}
 	}

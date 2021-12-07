@@ -153,7 +153,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 			var nodeTableDataset Dataset
 			end.Call("Node.GetMergedTableDataset", mergeTableArgs, &nodeTableDataset)
 
-			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema)
+			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema, true)
 		}
 
 		// Add rows to result
@@ -373,7 +373,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 		if tableHasOnJoinColumn == true {
 
 			end.Call("Node.FilterTableWithColumnValues", filterArgs, &nodeDataset)
-			nodeDataset.ReconstructTable(pkRowMap, table1Schema)
+			nodeDataset.ReconstructTable(pkRowMap, table1Schema, true)
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
@@ -406,7 +406,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 		var nodeDataset = Dataset{}
 		end.Call("Node.FilterTableWithPKs", filterByPKArgs, &nodeDataset)
-		nodeDataset.ReconstructTable(pkRowMap, table1Schema)
+		nodeDataset.ReconstructTable(pkRowMap, table1Schema, true)
 
 	}
 

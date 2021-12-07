@@ -147,7 +147,10 @@ func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
 	pkRowMap := make(map[interface{}]Row)
 
 	fullTableSchema := args[0].(TableSchema)
+	reply.Schema = fullTableSchema
+
 	tableNames := args[1:]
+
 	for _, tableName := range tableNames{
 
 		var dataset Dataset
@@ -155,15 +158,17 @@ func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
 		if table, ok := n.TableMap[tableName.(string)]; ok {
 			dataset.Schema = *table.schema
 			rowIterator, _ := n.IterateTable(tableName.(string))
+
 			for rowIterator.HasNext() {
 				dataset.Rows = append(dataset.Rows, *rowIterator.Next())
 			}
+
+			dataset.ReconstructTable(pkRowMap, fullTableSchema, false)
 		} else {
 			reply = nil
 			return
 		}
 
-		dataset.ReconstructTable(pkRowMap, fullTableSchema)
 	}
 
 	for _, row := range pkRowMap {
