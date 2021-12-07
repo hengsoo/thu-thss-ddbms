@@ -42,7 +42,11 @@ func (dataset *Dataset) ReconstructTable(
 			if !skipRowIdx {
 				insertColIdx += 1
 			}
-			_pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx+1]
+
+			if nodeRow[nodeColIdx+1] != nil {
+				_pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx+1]
+			}
+			
 		}
 	}
 }
