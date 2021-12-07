@@ -130,7 +130,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		pkRowMap := make(map[interface{}]Row)
 
 		// get approximated minimum number of nodes to retrieve table
-		criticalNodeRulesMap := setCover(c.TableNodeRulesMap[tableName])
+		criticalNodeRulesMap := SetCover(c.TableNodeRulesMap[tableName])
 
 		// Iterate node by relevant rule
 		// Get partial row data from each node
