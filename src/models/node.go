@@ -141,6 +141,8 @@ func (n *Node) GetTableDataset(args interface{}, reply *Dataset) {
 	}
 }
 
+// GetMergedTableDataset Merge multiple partition of the same table on this node into one dataset
+// Returned row has primary key (row index) on first column (row[0])
 func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
 
 	// args -> array of table names
@@ -151,7 +153,7 @@ func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
 
 	tableNames := args[1:]
 
-	for _, tableName := range tableNames{
+	for _, tableName := range tableNames {
 
 		var dataset Dataset
 
@@ -163,6 +165,7 @@ func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
 				dataset.Rows = append(dataset.Rows, *rowIterator.Next())
 			}
 
+			// don't skip row primary key on node & skip on cluster
 			dataset.ReconstructTable(pkRowMap, fullTableSchema, false)
 		} else {
 			reply = nil

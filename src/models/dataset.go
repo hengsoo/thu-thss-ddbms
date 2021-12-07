@@ -19,6 +19,8 @@ func (dataset *Dataset) ReconstructTable(
 	}
 
 	fullTableColumnsLen := len(fullTableSchema.ColumnSchemas)
+
+	// reserve extra column for primary key
 	if !skipRowIdx {
 		fullTableColumnsLen += 1
 	}
@@ -33,6 +35,7 @@ func (dataset *Dataset) ReconstructTable(
 		if _, ok := _pkRowMap[primaryKey]; !ok {
 			_pkRowMap[primaryKey] = make(Row, fullTableColumnsLen)
 			if !skipRowIdx {
+				// populate reserved primary key column
 				_pkRowMap[primaryKey][0] = primaryKey
 			}
 		}
@@ -42,11 +45,11 @@ func (dataset *Dataset) ReconstructTable(
 			if !skipRowIdx {
 				insertColIdx += 1
 			}
-
+			// when nodeRow has full table schema, overwrite is possible, add a nil check before overwrite
 			if nodeRow[nodeColIdx+1] != nil {
 				_pkRowMap[primaryKey][insertColIdx] = nodeRow[nodeColIdx+1]
 			}
-			
+
 		}
 	}
 }

@@ -35,7 +35,7 @@ func main() {
 	// use the client to create table and insert
 	// divide student table into two partitions and assign them to node0 and node1
 	m := map[string]interface{}{
-		"0": map[string]interface{}{
+		"0|1": map[string]interface{}{
 			"predicate": map[string]interface{}{
 				"grade": [...]map[string]interface{}{{
 					"op":  "<=",
@@ -44,10 +44,22 @@ func main() {
 				},
 			},
 			"column": [...]string{
-				"sid", "name", "age", "grade",
+				"sid", "name", "age",
 			},
 		},
-		"1": map[string]interface{}{
+		"1|2": map[string]interface{}{
+			"predicate": map[string]interface{}{
+				"grade": [...]map[string]interface{}{{
+					"op":  "<=",
+					"val": 3.6,
+				},
+				},
+			},
+			"column": [...]string{
+				"grade",
+			},
+		},
+		"2": map[string]interface{}{
 			"predicate": map[string]interface{}{
 				"grade": [...]map[string]interface{}{{
 					"op":  ">",

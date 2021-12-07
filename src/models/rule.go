@@ -2,7 +2,7 @@ package models
 
 // Segmentation Rule for DBMS
 type Rule struct {
-	RuleIdx	int
+	RuleIdx   int
 	Predicate map[string][]Condition
 	Column    []string
 }
@@ -13,6 +13,6 @@ type Condition struct {
 }
 
 type NodeRule struct {
-	Rule Rule
+	Rule        Rule
 	NodeIndices string
 }

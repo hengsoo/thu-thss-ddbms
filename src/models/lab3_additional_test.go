@@ -98,7 +98,7 @@ func TestLab3AdditionalVerticalFragmentation2(t *testing.T) {
 				},
 			},
 			"column": [...]string{
-				"sid", "name","age",
+				"sid", "name", "age",
 			},
 		},
 		"0|1": map[string]interface{}{
@@ -152,7 +152,6 @@ func TestLab3AdditionalVerticalFragmentation2(t *testing.T) {
 	results := Dataset{}
 	cli.Call("Cluster.Join", []string{studentTableName, courseRegistrationTableName}, &results)
 
-
 	expectedDataset := Dataset{
 		Schema: joinedTableSchema,
 		Rows:   joinedTableContent,
@@ -177,7 +176,7 @@ func TestLab3AdditionalSetCover(t *testing.T) {
 				},
 			},
 			"column": [...]string{
-				"sid", "name","age",
+				"sid", "name", "age",
 			},
 		},
 		"1|2": map[string]interface{}{

@@ -129,6 +129,7 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// The first column in each row (un-partitioned table row index) is assumed to be the PK.
 		pkRowMap := make(map[interface{}]Row)
 
+		// get approximated minimum number of nodes to retrieve table
 		criticalNodeRulesMap := setCover(c.TableNodeRulesMap[tableName])
 
 		// Iterate node by relevant rule
@@ -146,11 +147,15 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 
 			mergeTableArgs := make([]interface{}, 1)
 			mergeTableArgs[0] = result.Schema
+
+			// get a list of table names partitioned using different rules
 			for _, ruleIdx := range rules {
 				mergeTableArgs = append(mergeTableArgs, tableName+"_R"+strconv.Itoa(ruleIdx))
 			}
 
 			var nodeTableDataset Dataset
+
+			// merge all partitioned table on this node into one
 			end.Call("Node.GetMergedTableDataset", mergeTableArgs, &nodeTableDataset)
 
 			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema, true)
