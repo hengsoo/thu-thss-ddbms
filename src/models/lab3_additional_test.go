@@ -161,7 +161,7 @@ func TestLab3AdditionalVerticalFragmentation2(t *testing.T) {
 	}
 }
 
-func TestLab3AdditionalSetCover(t *testing.T) {
+func TestLab3AdditionalVerticalFragmentation3(t *testing.T) {
 	setupLab3()
 
 	// use the client to create table and insert
