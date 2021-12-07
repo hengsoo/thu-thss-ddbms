@@ -141,6 +141,36 @@ func (n *Node) GetTableDataset(args interface{}, reply *Dataset) {
 	}
 }
 
+func (n *Node) GetMergedTableDataset(args []interface{}, reply *Dataset) {
+
+	// args -> array of table names
+	pkRowMap := make(map[interface{}]Row)
+
+	fullTableSchema := args[0].(TableSchema)
+	tableNames := args[1:]
+	for _, tableName := range tableNames{
+
+		var dataset Dataset
+
+		if table, ok := n.TableMap[tableName.(string)]; ok {
+			dataset.Schema = *table.schema
+			rowIterator, _ := n.IterateTable(tableName.(string))
+			for rowIterator.HasNext() {
+				dataset.Rows = append(dataset.Rows, *rowIterator.Next())
+			}
+		} else {
+			reply = nil
+			return
+		}
+
+		dataset.ReconstructTable(pkRowMap, fullTableSchema)
+	}
+
+	for _, row := range pkRowMap {
+		reply.Rows = append(reply.Rows, row)
+	}
+}
+
 func (n *Node) TableHasColumn(args []string, reply *bool) {
 	// args[0] = table name
 	// args[1] = column name

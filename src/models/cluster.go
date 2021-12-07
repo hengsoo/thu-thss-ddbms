@@ -135,7 +135,6 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// Get partial row data from each node
 		endNamePrefix := "InternalClient"
 		for nodeIdxStr, rules := range criticalNodeRulesMap {
-			rule := nodeRule.Rule
 			nodeIdx := nodeIdxStr[0] - '0'
 			nodeId := c.nodeIds[nodeIdx]
 			endName := endNamePrefix + nodeId
@@ -145,8 +144,14 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 			// a client should be enabled before being used
 			c.network.Enable(endName, true)
 
+			mergeTableArgs := make([]interface{}, 1)
+			mergeTableArgs[0] = result.Schema
+			for _, ruleIdx := range rules {
+				mergeTableArgs = append(mergeTableArgs, tableName+"_R"+strconv.Itoa(ruleIdx))
+			}
+
 			var nodeTableDataset Dataset
-			end.Call("Node.GetTableDataset", tableName + "_R" + strconv.Itoa(rule.RuleIdx), &nodeTableDataset)
+			end.Call("Node.GetMergedTableDataset", mergeTableArgs, &nodeTableDataset)
 
 			nodeTableDataset.ReconstructTable(pkRowMap, result.Schema)
 		}
@@ -372,7 +377,7 @@ func (c *Cluster) SemiJoin(params []string, reply *Dataset) {
 
 		} else {
 			// save the rule (for .Column) and nodeIdxStr for next loop
-			missingJoinColumnRules = append(missingJoinColumnRules, NodeRule{NodeIndices: nodeIdxStr, Rule:rule})
+			missingJoinColumnRules = append(missingJoinColumnRules, NodeRule{NodeIndices: nodeIdxStr, Rule: rule})
 		}
 	}
 
@@ -438,11 +443,10 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 			rule.RuleIdx = ruleCount
 			ruleCount++
 
-			c.TableNodeRulesMap[schema.TableName] = append(c.TableNodeRulesMap[schema.TableName],NodeRule{
-				Rule:rule,
+			c.TableNodeRulesMap[schema.TableName] = append(c.TableNodeRulesMap[schema.TableName], NodeRule{
+				Rule:        rule,
 				NodeIndices: nodeIdxStr,
 			})
-
 
 		}
 		c.TableRowCountMap[schema.TableName] = 0
@@ -483,7 +487,7 @@ func (c *Cluster) BuildTable(params []interface{}, reply *string) {
 
 				// create table schema with name specific to node they live on
 				argument := TableSchema{
-					TableName: schema.TableName + "_R" + strconv.Itoa(rule.RuleIdx),
+					TableName:     schema.TableName + "_R" + strconv.Itoa(rule.RuleIdx),
 					ColumnSchemas: colSchemas}
 				reply := ""
 

@@ -70,7 +70,7 @@ func setCover(nodeRules []NodeRule) map[string][]int{
 		// initialize rule exists state using bits for each node, 00100 -> R3 exists
 		ruleState := uint64(0)
 		// set bit i to one for rule with index i
-		setBit(ruleState, nodeRule.Rule.RuleIdx)
+		ruleState = setBit(ruleState, nodeRule.Rule.RuleIdx)
 
 		for _, nodeStrId := range nodeStrIds {
 			// use OR to update rule exists state
