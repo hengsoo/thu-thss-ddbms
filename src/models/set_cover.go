@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+func hasBit(n uint64, pos int) bool {
+	val := n & (1 << pos)
+	return val > 0
+}
+
 // Sets the bit at pos in the integer n.
 func setBit(n uint64, pos int) uint64 {
 	n |= 1 << pos
@@ -18,24 +23,42 @@ func getRuleCount (currentState uint64) int{
 }
 
 // returns cost of adding a candidate to an existing state, cost = length(nodes) / contribution to existing state
-func cost(state uint64, candidate uint64) float64 {
+func cost(state uint64, candidate uint64) (float64, uint64) {
 	candidateCost := float64(getRuleCount(candidate))
-	contribution := float64(getRuleCount(^state & candidate))
-	return candidateCost/contribution
+	contributionState := ^state & candidate
+	contribution := float64(getRuleCount(contributionState))
+	return candidateCost/contribution, contributionState
 }
 
-func findMinCostNode(nodeStrIdToRulesMap map[string]uint64, state uint64) string{
-	minCost := math.Inf(1)
-	minCostNodeStrId := ""
-	for nodeStrId, ruleState := range nodeStrIdToRulesMap{
-		if cost(state, ruleState) < minCost {
-			minCostNodeStrId = nodeStrId
+func getContributionRuleIdx(contributionState uint64) []int {
+	ruleIndices := make([]int, 0)
+	// 64 bits max
+	for i := 0; i < 64; i++ {
+		if hasBit(contributionState, i) {
+			ruleIndices = append(ruleIndices, i)
 		}
 	}
-	return minCostNodeStrId
+
+	return ruleIndices
 }
 
-func setCover(nodeRules []NodeRule) []string{
+func findMinCostNode(nodeStrIdToRulesMap map[string]uint64, state uint64) (string, []int){
+	minCost := math.Inf(1)
+	minCostNodeStrId := ""
+	var minCostNodeRules []int
+
+	for nodeStrId, ruleState := range nodeStrIdToRulesMap{
+		cost, contributionState := cost(state, ruleState)
+		if cost < minCost {
+			minCost = cost
+			minCostNodeStrId = nodeStrId
+			minCostNodeRules = getContributionRuleIdx(contributionState)
+		}
+	}
+	return minCostNodeStrId, minCostNodeRules
+}
+
+func setCover(nodeRules []NodeRule) map[string][]int{
 
 	totalRulesCount := len(nodeRules)
 
@@ -55,16 +78,17 @@ func setCover(nodeRules []NodeRule) []string{
 		}
 	}
 
-	setCoverNodes := make([]string, 0)
+	setCoverNodeToRulesMap := make(map[string][]int)
+
 	currentState := uint64(0)
 
 	for getRuleCount(currentState) < totalRulesCount {
-		candidate := findMinCostNode(nodeStrIdToRulesMap, currentState)
-		setCoverNodes = append(setCoverNodes, candidate)
+		candidate, rules := findMinCostNode(nodeStrIdToRulesMap, currentState)
+		setCoverNodeToRulesMap[candidate] = rules
 		currentState |= nodeStrIdToRulesMap[candidate]
 		delete(nodeStrIdToRulesMap, candidate)
 	}
 
-	return setCoverNodes
+	return setCoverNodeToRulesMap
 
 }

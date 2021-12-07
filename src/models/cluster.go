@@ -129,11 +129,12 @@ func (c *Cluster) GetFullTableDataset(tableName string, result *Dataset) error {
 		// The first column in each row (un-partitioned table row index) is assumed to be the PK.
 		pkRowMap := make(map[interface{}]Row)
 
+		criticalNodeRulesMap := setCover(c.TableNodeRulesMap[tableName])
+
 		// Iterate node by relevant rule
 		// Get partial row data from each node
 		endNamePrefix := "InternalClient"
-		for _, nodeRule := range c.TableNodeRulesMap[tableName] {
-			nodeIdxStr := nodeRule.NodeIndices
+		for nodeIdxStr, rules := range criticalNodeRulesMap {
 			rule := nodeRule.Rule
 			nodeIdx := nodeIdxStr[0] - '0'
 			nodeId := c.nodeIds[nodeIdx]
