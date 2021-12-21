@@ -267,6 +267,17 @@ func (c *Cluster) NaturalJoinDatasets(datasetPtrs []*Dataset) (Dataset, error) {
 			//fmt.Println("Natural Join(s) has(have) no matching results.")
 			return result, nil
 		}
+
+		// Remove unmatched row after join
+		validLastRowIdx := len(result.Rows) - 1
+		for idx := validLastRowIdx; idx >= 0; idx-- {
+			if len(result.Rows[idx]) == beforeJoinResultColLen {
+				result.Rows[idx] = result.Rows[validLastRowIdx]
+				result.Rows = result.Rows[:validLastRowIdx]
+				validLastRowIdx -= 1
+			}
+		}
+
 	}
 
 	return result, nil
